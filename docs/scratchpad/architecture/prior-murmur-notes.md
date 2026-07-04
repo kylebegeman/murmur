@@ -1,0 +1,68 @@
+# Prior Murmur (Electron) Workspace Notes
+
+## What exists there
+
+`/Users/kyle/Developer/products/murmur` is a complete, functional-but-abandoned pnpm/Electron monorepo (~76 commits, all dated 2026-07-02 to 2026-07-04). It reached a working end-to-end dictation loop: Electron shell + Rust sidecar (`murmur-core`, JSON-lines over stdio) doing CPAL capture, threshold-VAD trim, GGUF transcription via embedded `transcribe-cpp` (Metal), local cleanup, budget-gated provider cleanup, dictionary learning, auto-paste with wrong-window guard, an always-on-top recording HUD, and a first-run Setup checklist. Final commits were wiring live/streaming ASR preview ("Add live ASR preview plumbing", "Use Handy streaming Parakeet model by default", "Fix live recording waveform and transcript state").
+
+Layout:
+
+- `apps/desktop/` — Electron shell + React renderer (the product)
+- `engines/murmur-core/src/main.rs` — single-file (~2,900 line) Rust sidecar engine
+- `packages/contracts/`, `packages/engine-client/` — typed sidecar protocol
+- `packages/electron-shell/`, `packages/electron-workspace-shell/`, `packs/electron-mac-shell/` — extracted reusable Electron shell packages (Lumen-oriented)
+- `docs/` — the real value: product plans, decision ledger, research
+- `ref/Handy-main/` — read-only Handy snapshot (ignore; the new repo IS Handy)
+
+Important framing note: this repo explicitly decided *against* being a Handy fork (`README.md`, `docs/product-boundary-and-start-plan.md` "Mac App Technology Decision"). The new Tauri-based Murmur reverses that decision, so read every architecture doc there through that lens — the *product* decisions transfer; the Electron/sidecar *architecture* decisions do not.
+
+## Documents worth reading (concrete paths)
+
+| Path | Contents |
+| --- | --- |
+| `docs/product-boundary-and-start-plan.md` | **The core product spec.** Murmur = standalone Wispr replacement; Lumen Voice is a separate later product; shared layer kept deliberately thin; provider lanes and budget rules; phased plan (Phases 0–5) with detailed status of what was actually built |
+| `docs/decision-ledger.md` | ~25 dated, accepted/superseded product decisions — the densest source of transferable ideas (each entry has a "Why it matters") |
+| `docs/voice-stack.md` | Verified research report (2026-07-01): how Wispr Flow works (700ms budget: <200ms ASR + <200ms LLM + network), local ASR benchmark table (Parakeet/whisper.cpp/WhisperKit/SpeechAnalyzer), cloud ASR + cleanup-LLM pricing tables, open-source reuse map (Handy/VoiceInk/Whispering patterns), macOS injection/hotkey mechanics and traps, Jarvis pipeline architecture, cost scenarios |
+| `docs/operations/local-transcription-adapter.md` | Best single summary of implemented product behavior (the de-facto feature spec) plus "Remaining Work" list |
+| `docs/architecture/electron-rust-engine.md` | Shell/engine boundary rationale (superseded by Tauri choice, but the "what belongs in Rust vs product layer" split still reads well) |
+| `docs/features/electron-workspace-shell-feature-plan.md` | 20-feature workspace-shell ledger (route registry, command palette, content states, restoration, diagnostics, test anchors) — mostly Electron/Lumen-shell concerns |
+| `docs/operations/macos-microphone-capture.md` | macOS zero-sample capture gotcha (CoreAudio silently returns all-zero buffers without mic permission; detect it, don't treat as quiet room) |
+
+## Product ideas and decisions to carry forward into Tauri Murmur
+
+These are things Handy does **not** already give you, in rough priority order:
+
+1. **Cleanup route lanes + budget guard** — the signature product concept. Four route modes: `private` (default, never touches network), `fast-cheap`, `recovery`, `premium-manual` (never auto-selected). Monthly budget guard: $3.00 soft / $10.00 hard / warn at 70%, cloud cleanup **off by default**, auto-disable at hard cap, per-call cost estimate before spend, usage ledger with route/provider/model/cost metadata on each history item. See `apps/desktop/src/shared/cleanupProviders.ts` (provider definitions with per-million-token costs, route compatibility, cost estimator, and the full cleanup prompt) and `apps/desktop/src/renderer/lib/providerBudget.ts` (summary/decision state machine: disabled/available/warning/blocked). Providers: Groq (default, `openai/gpt-oss-20b`), Gemini Flash-Lite, DeepSeek, Ollama ($0 local lane, `qwen3:4b`), custom OpenAI-compatible. Keys via env vars only, calls only from the trusted process, never the webview.
+
+2. **Cleanup preset/style modes** — `automatic` (infer from target app context), `plain`, `markdown`, `technical` (bias toward exact code/framework spelling). The prompt carries transcript + accepted dictionary terms + frontmost-app context (app name, bundle id, window title). System prompt worth reusing verbatim: "You clean speech-to-text dictation. Preserve the speaker's intent and wording. … Never add facts. Never answer the transcript. Return only the cleaned transcript." Output sanitizer strips code fences and "Cleaned transcript:" prefixes. All in `cleanupProviders.ts` (`styleInstruction`, `createCleanupPromptMessages`, `cleanProviderTranscriptOutput`).
+
+3. **Local offline "light" cleanup layer** — runs after ASR, before paste/copy; `light`/`off` modes; conservative (whitespace, punctuation spacing, sentence capitalization, dictionary replacements); **always preserve raw ASR text when cleanup changes it**, with a raw/clean toggle in History. `apps/desktop/src/renderer/lib/transcriptCleanup.ts`. Provider cleanup layers *on top of* local cleanup and falls back to the local result on provider failure — never fails transcription.
+
+4. **Correction → Dictionary learning loop** — inline transcript correction in History (preserving raw text), diff raw vs corrected to *propose* dictionary entries, explicit accept/dismiss/disable per term, `sourcePhrase → phrase` misrecognition replacements, and accepted terms threaded into ASR bias, cleanup prompts, and benchmarks. This replicates Wispr's "never repeat a corrected mistake" loop. `apps/desktop/src/renderer/routes/personalDictionary.ts`, ledger entries "Add Local Dictionary Suggestions From Corrections" and "Thread Dictionary Context Through Transcription Requests".
+
+5. **Wrong-window paste guard + safe clipboard restore** — capture frontmost app at recording start; if focus moved before transcription finishes, *skip* auto-paste and copy instead (text never lost, never dumped in wrong field). Clipboard restore only if clipboard still contains Murmur's transient text (guards against racing clipboard managers). Ledger: "Guard Auto-Paste With Frontmost App Target", "Add Safe Clipboard Restore For Paste Insertion". `docs/voice-stack.md` §5 has the deeper VoiceInk/Whispering patterns (session-ID-guarded restore, `org.nspasteboard.ConcealedType`, secure-input detection, stale-Accessibility-grant trap) for when this gets hardened natively.
+
+6. **First-run Setup as a route, not a modal** — five required checks: engine status, mic permission, shortcut registration, selected-model readiness, and a **verified first signal-bearing capture** (all-zero-sample detection means broken permission, not silence). "Continue later" allowed; completion persisted. Ledger: "Add First-Run Setup Route", "Require Verified Capture To Finish Setup".
+
+7. **Model Lab concepts** beyond Handy's model manager: SHA-256 + size verification before install, cancellable downloads keeping resumable `.part` files, explicit **prewarm/unload** of the cached native model, benchmarks that only report "measured" when a real transcription pass ran, and `modelLoadMs`/`modelCacheHit` metrics so cold vs cached runs aren't compared misleadingly. Ledger: "Promote Local Model Runtime To Native-First", "Cache Native Transcription Models", "Add Native Model Prewarm And Unload Controls".
+
+8. **History as a lightweight local archive** — search across transcript/raw/corrections/device/app/model/error, status filters (transcribed / needs transcript / failed / corrected), "Copy visible" plain-text export, per-item metadata (VAD voice-activity, target app, cleanup route/provider/cost). `apps/desktop/src/renderer/routes/captureHistory.ts`.
+
+9. **Naming and IA decisions** — App name "Murmur", bundle id `com.kylebegeman.murmur`. Workspace sections: **Capture** (Setup, Dictation) / **Library** (History, Dictionary) / **Runtime** (Models, called "Model Lab" in copy) / **System** (Settings). Cmd+0–4 route shortcuts, Cmd+K palette. `apps/desktop/src/renderer/murmurWorkspace.ts`.
+
+10. **Shortcut decisions** — `Option+Space` default (deliberately Handy-compatible, proven on Kyle's Mac); user-switchable presets (`Control+Option+Space`, `Command+Shift+Space`, disabled). A native Swift **Control-key gesture monitor** (hold-to-talk, double-tap toggle) was built (`apps/desktop/native/macos-control-key-monitor.swift`) but **superseded** — modifier-only gestures were unreliable even with permissions granted, and it stayed behind an env flag. Original motivation: `Cmd+Shift+Space` conflicted with 1Password. Lesson: default to plain chords, keep modifier-only push-to-talk experimental.
+
+11. **HUD design intent** — small always-on-top panel with four variants (recording / processing / success / error), timer, live waveform bars, meta line, and transcript preview; explicitly a *mirror* of product state, owning no capture logic, replaceable later. `apps/desktop/src/main.ts` (~lines 106–830). Handy's overlay exists but this variant/preview/timer model is the richer product spec.
+
+12. **Defaults snapshot** (from `apps/desktop/src/renderer/murmurPreferences.ts`): auto-paste off, auto-transcribe off, cloud cleanup off, provider groq, cleanup `light`, route `private`, style `automatic`, shortcut `option-space`, budget 300/1000 cents, warn 70%, history persistence on.
+
+13. **Open questions left unresolved** (still open for the Tauri build): default local ASR model (leaning Handy's streaming Parakeet, per final commit), first cheap-cloud provider choice, in-app encrypted credential UI vs env-only keys, native NSPasteboard module vs Electron-level clipboard handling (moot — Tauri/Rust can do it natively now), AX focused-element snapshot vs frontmost-app guard, native ASR prompt-biasing with dictionary terms, idle model unload policy, signing/notarization.
+
+## What to ignore
+
+- **All Electron code and Electron architecture**: `packages/electron-shell/`, `packages/electron-workspace-shell/`, `packs/electron-mac-shell/`, `apps/desktop/src/main.ts`/`preload.ts` mechanics, the smoke harnesses, `electron-builder` config, entitlements. Handy/Tauri already provides windowing, tray, IPC, overlay, and permissions.
+- **The sidecar-engine architecture** (`engines/murmur-core`, `packages/engine-client`, `packages/contracts`, JSON-lines protocol): the whole point of it was to avoid Tauri; Tauri commands/events replace it. Everything it implemented (CPAL, VAD, transcribe-cpp, model lifecycle) already exists more maturely in Handy's `src-tauri`.
+- **`docs/voice-stack.md`'s "one daemon, three clients" architecture** — already marked superseded in-repo; keep it only as research (benchmarks, pricing, macOS mechanics, Jarvis pipeline shape for a much later phase).
+- **The workspace-shell feature plan as an implementation guide** — Handy already has a settings UI; the 20-feature shell ledger is Lumen-pack territory. Cherry-pick concepts (command palette, content states) only if the Tauri UI grows to need them.
+- **localStorage-based persistence** of preferences/budget — replace with `tauri-plugin-store` / SQLite in the new app.
+- **`ref/Handy-main/`** (stale Handy snapshot), `node_modules/`, `engines/murmur-core/target/`, `apps/desktop/release/` and `dist*/` build artifacts, and the `.html` mirrors of the markdown docs.
+- **The "not a Handy fork" repo decision itself** — explicitly reversed by the new Tauri fork; keep the MIT-attribution and no-GPL-copying constraints it recorded.
