@@ -59,7 +59,7 @@ export const AboutSettings: React.FC = () => {
 
         <SettingContainer
           title={t("settings.about.basedOnHandy")}
-          description="https://github.com/cjpais/Handy"
+          description={t("settings.about.upstreamProject")}
           grouped={true}
         >
           <Button

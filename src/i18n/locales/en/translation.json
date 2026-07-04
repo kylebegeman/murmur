@@ -561,7 +561,8 @@
         "description": "View source code and contribute",
         "button": "View on GitHub"
       },
-      "basedOnHandy": "Based on Handy by CJ Pais",
+      "basedOnHandy": "Original Project",
+      "upstreamProject": "View the upstream source project and attribution",
       "acknowledgments": {
         "title": "Acknowledgments",
         "ggml": {
