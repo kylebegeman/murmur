@@ -202,7 +202,8 @@
           "restore": "Échec de la restauration du raccourci original",
           "set": "Échec de la définition du raccourci : {{error}}",
           "reset": "Échec de la réinitialisation du raccourci à sa valeur d'origine"
-        }
+        },
+        "setFn": "Set shortcut to fn"
       },
       "language": {
         "title": "Langue",
@@ -436,7 +437,16 @@
       "retranscribe": "Re-transcrire",
       "retranscribeError": "Impossible de re-transcrire. Veuillez réessayer.",
       "transcribing": "Transcription en cours...",
-      "transcriptionFailed": "La transcription a échoué. Vous pouvez re-transcrire en utilisant l'icône de réessai."
+      "transcriptionFailed": "La transcription a échoué. Vous pouvez re-transcrire en utilisant l'icône de réessai.",
+      "copyError": "Failed to copy. Please try again.",
+      "outcome": {
+        "inserted": "Inserted",
+        "copied": "Copied",
+        "notDelivered": "Not inserted",
+        "emptyTranscript": "Empty",
+        "transcriptionFailed": "Failed",
+        "pasteFailed": "Paste failed"
+      }
     },
     "debug": {
       "title": "Débogage",
@@ -558,7 +568,9 @@
       "whatsNewUpdates": {
         "label": "Afficher les nouveautés",
         "description": "Afficher les notes de version après les mises à jour de Murmur"
-      }
+      },
+      "basedOnHandy": "Original Project",
+      "upstreamProject": "View the upstream source project and attribution"
     }
   },
   "footer": {
@@ -611,7 +623,17 @@
   },
   "overlay": {
     "transcribing": "Transcription...",
-    "processing": "Traitement..."
+    "processing": "Traitement...",
+    "result": {
+      "inserted": "Inserted",
+      "copied": "Copied to clipboard",
+      "notDelivered": "Not inserted — paste is off",
+      "noSpeech": "No speech detected",
+      "emptyTranscript": "Empty transcript",
+      "transcriptionFailed": "Transcription failed",
+      "pasteFailed": "Couldn't paste — transcript kept",
+      "copiedConfirm": "Copied"
+    }
   },
   "whatsNew": {
     "title": "Nouveautés de Murmur v{{version}}"

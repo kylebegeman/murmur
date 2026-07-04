@@ -202,7 +202,8 @@
           "restore": "Не удалось восстановить исходный ярлык",
           "set": "Не удалось установить ярлык: {{error}}",
           "reset": "Не удалось сбросить ярлык до исходного значения"
-        }
+        },
+        "setFn": "Set shortcut to fn"
       },
       "language": {
         "title": "Язык",
@@ -436,7 +437,16 @@
       "retranscribe": "Перетранскрибировать",
       "retranscribeError": "Не удалось перетранскрибировать. Пожалуйста, попробуйте снова.",
       "transcribing": "Транскрибирование...",
-      "transcriptionFailed": "Транскрипция не удалась. Вы можете перетранскрибировать, используя значок повтора."
+      "transcriptionFailed": "Транскрипция не удалась. Вы можете перетранскрибировать, используя значок повтора.",
+      "copyError": "Failed to copy. Please try again.",
+      "outcome": {
+        "inserted": "Inserted",
+        "copied": "Copied",
+        "notDelivered": "Not inserted",
+        "emptyTranscript": "Empty",
+        "transcriptionFailed": "Failed",
+        "pasteFailed": "Paste failed"
+      }
     },
     "debug": {
       "title": "Отлаживать",
@@ -558,7 +568,9 @@
       "whatsNewUpdates": {
         "label": "Показывать новинки",
         "description": "Показывать примечания к выпуску после обновлений Murmur"
-      }
+      },
+      "basedOnHandy": "Original Project",
+      "upstreamProject": "View the upstream source project and attribution"
     }
   },
   "footer": {
@@ -611,7 +623,17 @@
   },
   "overlay": {
     "transcribing": "Расшифровка...",
-    "processing": "Обработка..."
+    "processing": "Обработка...",
+    "result": {
+      "inserted": "Inserted",
+      "copied": "Copied to clipboard",
+      "notDelivered": "Not inserted — paste is off",
+      "noSpeech": "No speech detected",
+      "emptyTranscript": "Empty transcript",
+      "transcriptionFailed": "Transcription failed",
+      "pasteFailed": "Couldn't paste — transcript kept",
+      "copiedConfirm": "Copied"
+    }
   },
   "whatsNew": {
     "title": "Новое в Murmur v{{version}}"

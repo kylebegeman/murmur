@@ -202,7 +202,8 @@
           "restore": "Nie udało się przywrócić oryginalnego skrótu",
           "set": "Nie udało się ustawić skrótu: {{error}}",
           "reset": "Nie udało się zresetować skrótu do wartości domyślnej"
-        }
+        },
+        "setFn": "Set shortcut to fn"
       },
       "language": {
         "title": "Język",
@@ -436,7 +437,16 @@
       "retranscribe": "Transkrybuj ponownie",
       "retranscribeError": "Nie udało się ponownie transkrybować. Spróbuj ponownie.",
       "transcribing": "Transkrybuję...",
-      "transcriptionFailed": "Transkrypcja nie powiodła się. Możesz transkrybować ponownie za pomocą ikony ponowienia."
+      "transcriptionFailed": "Transkrypcja nie powiodła się. Możesz transkrybować ponownie za pomocą ikony ponowienia.",
+      "copyError": "Failed to copy. Please try again.",
+      "outcome": {
+        "inserted": "Inserted",
+        "copied": "Copied",
+        "notDelivered": "Not inserted",
+        "emptyTranscript": "Empty",
+        "transcriptionFailed": "Failed",
+        "pasteFailed": "Paste failed"
+      }
     },
     "debug": {
       "title": "Debugowanie",
@@ -558,7 +568,9 @@
       "whatsNewUpdates": {
         "label": "Pokaż nowości",
         "description": "Pokazuj informacje o wydaniu po aktualizacjach Murmur"
-      }
+      },
+      "basedOnHandy": "Original Project",
+      "upstreamProject": "View the upstream source project and attribution"
     }
   },
   "footer": {
@@ -611,7 +623,17 @@
   },
   "overlay": {
     "transcribing": "Transkrypcja...",
-    "processing": "Przetwarzanie..."
+    "processing": "Przetwarzanie...",
+    "result": {
+      "inserted": "Inserted",
+      "copied": "Copied to clipboard",
+      "notDelivered": "Not inserted — paste is off",
+      "noSpeech": "No speech detected",
+      "emptyTranscript": "Empty transcript",
+      "transcriptionFailed": "Transcription failed",
+      "pasteFailed": "Couldn't paste — transcript kept",
+      "copiedConfirm": "Copied"
+    }
   },
   "whatsNew": {
     "title": "Nowości w Murmur v{{version}}"

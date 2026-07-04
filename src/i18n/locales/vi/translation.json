@@ -202,7 +202,8 @@
           "restore": "Không thể khôi phục phím tắt gốc",
           "set": "Không thể đặt phím tắt: {{error}}",
           "reset": "Không thể đặt lại phím tắt về giá trị gốc"
-        }
+        },
+        "setFn": "Set shortcut to fn"
       },
       "language": {
         "title": "Ngôn ngữ",
@@ -436,7 +437,16 @@
       "retranscribe": "Phiên âm lại",
       "retranscribeError": "Không thể phiên âm lại. Vui lòng thử lại.",
       "transcribing": "Đang phiên âm...",
-      "transcriptionFailed": "Phiên âm thất bại. Bạn có thể phiên âm lại bằng biểu tượng thử lại."
+      "transcriptionFailed": "Phiên âm thất bại. Bạn có thể phiên âm lại bằng biểu tượng thử lại.",
+      "copyError": "Failed to copy. Please try again.",
+      "outcome": {
+        "inserted": "Inserted",
+        "copied": "Copied",
+        "notDelivered": "Not inserted",
+        "emptyTranscript": "Empty",
+        "transcriptionFailed": "Failed",
+        "pasteFailed": "Paste failed"
+      }
     },
     "debug": {
       "title": "Gỡ lỗi",
@@ -558,7 +568,9 @@
       "whatsNewUpdates": {
         "label": "Hiển thị điểm mới",
         "description": "Hiển thị ghi chú phát hành sau khi Murmur cập nhật"
-      }
+      },
+      "basedOnHandy": "Original Project",
+      "upstreamProject": "View the upstream source project and attribution"
     }
   },
   "footer": {
@@ -611,7 +623,17 @@
   },
   "overlay": {
     "transcribing": "Đang chuyển đổi...",
-    "processing": "Đang xử lý..."
+    "processing": "Đang xử lý...",
+    "result": {
+      "inserted": "Inserted",
+      "copied": "Copied to clipboard",
+      "notDelivered": "Not inserted — paste is off",
+      "noSpeech": "No speech detected",
+      "emptyTranscript": "Empty transcript",
+      "transcriptionFailed": "Transcription failed",
+      "pasteFailed": "Couldn't paste — transcript kept",
+      "copiedConfirm": "Copied"
+    }
   },
   "whatsNew": {
     "title": "Điểm mới trong Murmur v{{version}}"

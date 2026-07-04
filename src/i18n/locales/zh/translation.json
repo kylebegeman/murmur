@@ -202,7 +202,8 @@
           "restore": "无法恢复原始快捷键",
           "set": "无法设置快捷键: {{error}}",
           "reset": "无法将快捷键重置为原始值"
-        }
+        },
+        "setFn": "Set shortcut to fn"
       },
       "language": {
         "title": "语言",
@@ -436,7 +437,16 @@
       "retranscribe": "重新转录",
       "retranscribeError": "重新转录失败。请重试。",
       "transcribing": "转录中...",
-      "transcriptionFailed": "转录失败。您可以使用重试图标重新转录。"
+      "transcriptionFailed": "转录失败。您可以使用重试图标重新转录。",
+      "copyError": "Failed to copy. Please try again.",
+      "outcome": {
+        "inserted": "Inserted",
+        "copied": "Copied",
+        "notDelivered": "Not inserted",
+        "emptyTranscript": "Empty",
+        "transcriptionFailed": "Failed",
+        "pasteFailed": "Paste failed"
+      }
     },
     "debug": {
       "title": "调试",
@@ -558,7 +568,9 @@
       "whatsNewUpdates": {
         "label": "显示新功能",
         "description": "Murmur 更新后显示发行说明"
-      }
+      },
+      "basedOnHandy": "Original Project",
+      "upstreamProject": "View the upstream source project and attribution"
     }
   },
   "footer": {
@@ -611,7 +623,17 @@
   },
   "overlay": {
     "transcribing": "正在转录...",
-    "processing": "处理中..."
+    "processing": "处理中...",
+    "result": {
+      "inserted": "Inserted",
+      "copied": "Copied to clipboard",
+      "notDelivered": "Not inserted — paste is off",
+      "noSpeech": "No speech detected",
+      "emptyTranscript": "Empty transcript",
+      "transcriptionFailed": "Transcription failed",
+      "pasteFailed": "Couldn't paste — transcript kept",
+      "copiedConfirm": "Copied"
+    }
   },
   "whatsNew": {
     "title": "Murmur v{{version}} 新功能"

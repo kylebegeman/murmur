@@ -184,7 +184,8 @@
           "restore": "Oorspronkelijke sneltoets herstellen mislukt",
           "set": "Sneltoets instellen mislukt: {{error}}",
           "reset": "Sneltoets resetten naar oorspronkelijke waarde mislukt"
-        }
+        },
+        "setFn": "Set shortcut to fn"
       },
       "language": {
         "title": "Taal",
@@ -436,7 +437,16 @@
       "retranscribe": "Opnieuw transcriberen",
       "retranscribeError": "Opnieuw transcriberen mislukt. Probeer het opnieuw.",
       "transcribing": "Transcriberen...",
-      "transcriptionFailed": "Transcriptie mislukt. Je kunt opnieuw transcriberen met het herhaal-pictogram."
+      "transcriptionFailed": "Transcriptie mislukt. Je kunt opnieuw transcriberen met het herhaal-pictogram.",
+      "copyError": "Failed to copy. Please try again.",
+      "outcome": {
+        "inserted": "Inserted",
+        "copied": "Copied",
+        "notDelivered": "Not inserted",
+        "emptyTranscript": "Empty",
+        "transcriptionFailed": "Failed",
+        "pasteFailed": "Paste failed"
+      }
     },
     "debug": {
       "title": "Debug",
@@ -558,7 +568,9 @@
           "description": "Hoge-prestatie tensorbibliotheek voor on-device machine learning-inferentie",
           "details": "Murmur's lokale spraak-naar-tekst is gebouwd op transcribe.cpp en ggml. Dank aan het geweldige werk van Georgi Gerganov en bijdragers."
         }
-      }
+      },
+      "basedOnHandy": "Original Project",
+      "upstreamProject": "View the upstream source project and attribution"
     }
   },
   "footer": {
@@ -614,6 +626,16 @@
   },
   "overlay": {
     "transcribing": "Transcriberen...",
-    "processing": "Verwerken..."
+    "processing": "Verwerken...",
+    "result": {
+      "inserted": "Inserted",
+      "copied": "Copied to clipboard",
+      "notDelivered": "Not inserted — paste is off",
+      "noSpeech": "No speech detected",
+      "emptyTranscript": "Empty transcript",
+      "transcriptionFailed": "Transcription failed",
+      "pasteFailed": "Couldn't paste — transcript kept",
+      "copiedConfirm": "Copied"
+    }
   }
 }
