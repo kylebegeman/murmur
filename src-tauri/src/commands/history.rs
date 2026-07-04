@@ -95,12 +95,15 @@ pub async fn retry_history_entry_transcription(
 
     let processed =
         process_transcription_output(&app, &transcription, entry.post_process_requested).await;
+    // Attribute the re-transcribed text to whichever model produced it.
+    let model_id = transcription_manager.get_current_model();
     history_manager
         .update_transcription(
             id,
             transcription,
             processed.post_processed_text,
             processed.post_process_prompt,
+            model_id,
         )
         .map(|_| ())
         .map_err(|e| e.to_string())

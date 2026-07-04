@@ -535,7 +535,15 @@ impl AudioRecordingManager {
         self.cancel_generation.load(Ordering::Acquire) != generation
     }
 
-    pub fn stop_recording(&self, binding_id: &str, cancel_generation: u64) -> Option<Vec<f32>> {
+    /// Stops recording and returns `(samples, captured_len)` where `samples`
+    /// may be zero-padded up to the model's minimum length and `captured_len`
+    /// is the true number of captured samples (before padding) for accurate
+    /// duration reporting. `None` if there was nothing to stop or it was cancelled.
+    pub fn stop_recording(
+        &self,
+        binding_id: &str,
+        cancel_generation: u64,
+    ) -> Option<(Vec<f32>, usize)> {
         let mut state = self.state.lock().unwrap();
 
         match *state {
@@ -597,16 +605,19 @@ impl AudioRecordingManager {
                     return None;
                 }
 
-                // Pad if very short
-                let s_len = samples.len();
-                // debug!("Got {} samples", s_len);
-                if s_len < WHISPER_SAMPLE_RATE && s_len > 0 {
+                // Pad if very short. Return the *true* captured length
+                // (`captured_len`) separately so callers can report an accurate
+                // duration — the padded buffer's length would inflate every
+                // sub-second capture to the same fixed value.
+                let captured_len = samples.len();
+                let out = if captured_len < WHISPER_SAMPLE_RATE && captured_len > 0 {
                     let mut padded = samples;
                     padded.resize(WHISPER_SAMPLE_RATE * 5 / 4, 0.0);
-                    Some(padded)
+                    padded
                 } else {
-                    Some(samples)
-                }
+                    samples
+                };
+                Some((out, captured_len))
             }
             _ => None,
         }

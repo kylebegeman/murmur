@@ -31,6 +31,12 @@ static MIGRATIONS: &[M] = &[
     M::up("ALTER TABLE transcription_history ADD COLUMN post_processed_text TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_prompt TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_requested BOOLEAN NOT NULL DEFAULT 0;"),
+    // Recent Captures metadata: capture length, model used, and the insertion
+    // outcome (see actions.rs DictationOutcome). All nullable so pre-existing
+    // rows and captures where the value is unknown remain valid.
+    M::up("ALTER TABLE transcription_history ADD COLUMN duration_ms INTEGER;"),
+    M::up("ALTER TABLE transcription_history ADD COLUMN model_id TEXT;"),
+    M::up("ALTER TABLE transcription_history ADD COLUMN outcome TEXT;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -63,6 +69,14 @@ pub struct HistoryEntry {
     pub post_processed_text: Option<String>,
     pub post_process_prompt: Option<String>,
     pub post_process_requested: bool,
+    /// Capture length in milliseconds (from the recorded sample count).
+    pub duration_ms: Option<i64>,
+    /// Id of the model that produced the transcript.
+    pub model_id: Option<String>,
+    /// Insertion outcome (serialized `DictationOutcome`): `inserted`, `copied`,
+    /// `not_delivered`, `empty_transcript`, `transcription_failed`,
+    /// `paste_failed`. `None` when unknown (e.g. re-transcribed, not re-inserted).
+    pub outcome: Option<String>,
 }
 
 pub struct HistoryManager {
@@ -193,7 +207,13 @@ impl HistoryManager {
     }
 
     fn get_connection(&self) -> Result<Connection> {
-        Ok(Connection::open(&self.db_path)?)
+        let conn = Connection::open(&self.db_path)?;
+        // A fresh connection is opened per operation with no pool, so concurrent
+        // writers (e.g. the pipeline's save_entry racing the main-thread
+        // set_entry_outcome, or a UI delete) can otherwise surface SQLITE_BUSY
+        // immediately. Wait briefly for the lock instead of failing outright.
+        conn.busy_timeout(std::time::Duration::from_secs(3))?;
+        Ok(conn)
     }
 
     fn map_history_entry(row: &rusqlite::Row<'_>) -> rusqlite::Result<HistoryEntry> {
@@ -207,6 +227,9 @@ impl HistoryManager {
             post_processed_text: row.get("post_processed_text")?,
             post_process_prompt: row.get("post_process_prompt")?,
             post_process_requested: row.get("post_process_requested")?,
+            duration_ms: row.get("duration_ms")?,
+            model_id: row.get("model_id")?,
+            outcome: row.get("outcome")?,
         })
     }
 
@@ -216,6 +239,7 @@ impl HistoryManager {
 
     /// Save a new history entry to the database.
     /// The WAV file should already have been written to the recordings directory.
+    #[allow(clippy::too_many_arguments)]
     pub fn save_entry(
         &self,
         file_name: String,
@@ -223,6 +247,9 @@ impl HistoryManager {
         post_process_requested: bool,
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
+        duration_ms: Option<i64>,
+        model_id: Option<String>,
+        outcome: Option<String>,
     ) -> Result<HistoryEntry> {
         let timestamp = Utc::now().timestamp();
         let title = self.format_timestamp_title(timestamp);
@@ -237,8 +264,11 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                post_process_requested,
+                duration_ms,
+                model_id,
+                outcome
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 &file_name,
                 timestamp,
@@ -248,6 +278,9 @@ impl HistoryManager {
                 &post_processed_text,
                 &post_process_prompt,
                 post_process_requested,
+                duration_ms,
+                &model_id,
+                &outcome,
             ],
         )?;
 
@@ -261,6 +294,9 @@ impl HistoryManager {
             post_processed_text,
             post_process_prompt,
             post_process_requested,
+            duration_ms,
+            model_id,
+            outcome,
         };
 
         debug!("Saved history entry with id {}", entry.id);
@@ -286,18 +322,28 @@ impl HistoryManager {
         transcription_text: String,
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
+        model_id: Option<String>,
     ) -> Result<HistoryEntry> {
         let conn = self.get_connection()?;
+        // Re-transcribing produces new text but does not re-insert it anywhere,
+        // so the prior insertion outcome no longer applies — clear it to NULL
+        // (e.g. a `transcription_failed` row that now has text shouldn't keep
+        // claiming failure). The retried text may have come from a different
+        // model, so refresh `model_id` too (COALESCE keeps the old value if the
+        // caller couldn't determine the current model).
         let updated = conn.execute(
             "UPDATE transcription_history
              SET transcription_text = ?1,
                  post_processed_text = ?2,
-                 post_process_prompt = ?3
-             WHERE id = ?4",
+                 post_process_prompt = ?3,
+                 model_id = COALESCE(?4, model_id),
+                 outcome = NULL
+             WHERE id = ?5",
             params![
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
+                model_id,
                 id
             ],
         )?;
@@ -308,13 +354,46 @@ impl HistoryManager {
 
         let entry = conn
             .query_row(
-                "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, duration_ms, model_id, outcome
                  FROM transcription_history WHERE id = ?1",
                 params![id],
                 Self::map_history_entry,
             )?;
 
         debug!("Updated transcription for history entry {}", id);
+
+        if let Err(e) = (HistoryUpdatePayload::Updated {
+            entry: entry.clone(),
+        })
+        .emit(&self.app_handle)
+        {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+
+        Ok(entry)
+    }
+
+    /// Record the insertion outcome (`DictationOutcome`) for a capture. Called
+    /// from the pipeline after the paste attempt resolves, so the Recent
+    /// Captures panel can show whether each capture was inserted, copied, or
+    /// failed. Emits an `Updated` event so an open panel reflects it live.
+    pub fn set_entry_outcome(&self, id: i64, outcome: &str) -> Result<HistoryEntry> {
+        let conn = self.get_connection()?;
+        let updated = conn.execute(
+            "UPDATE transcription_history SET outcome = ?1 WHERE id = ?2",
+            params![outcome, id],
+        )?;
+
+        if updated == 0 {
+            return Err(anyhow!("History entry {} not found", id));
+        }
+
+        let entry = conn.query_row(
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, duration_ms, model_id, outcome
+             FROM transcription_history WHERE id = ?1",
+            params![id],
+            Self::map_history_entry,
+        )?;
 
         if let Err(e) = (HistoryUpdatePayload::Updated {
             entry: entry.clone(),
@@ -361,6 +440,12 @@ impl HistoryManager {
                 "DELETE FROM transcription_history WHERE id = ?1",
                 params![id],
             )?;
+
+            // Tell any open Recent Captures panel the row is gone, so it can't
+            // keep listing an entry whose row and audio no longer exist.
+            if let Err(e) = (HistoryUpdatePayload::Deleted { id: *id }).emit(&self.app_handle) {
+                error!("Failed to emit history-deleted event: {}", e);
+            }
 
             // Delete WAV file
             let file_path = self.recordings_dir.join(file_name);
@@ -459,7 +544,7 @@ impl HistoryManager {
             (Some(cursor_id), Some(lim)) => {
                 let fetch_count = (lim + 1) as i64;
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, duration_ms, model_id, outcome
                      FROM transcription_history
                      WHERE id < ?1
                      ORDER BY id DESC
@@ -473,7 +558,7 @@ impl HistoryManager {
             (None, Some(lim)) => {
                 let fetch_count = (lim + 1) as i64;
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, duration_ms, model_id, outcome
                      FROM transcription_history
                      ORDER BY id DESC
                      LIMIT ?1",
@@ -485,7 +570,7 @@ impl HistoryManager {
             }
             (_, None) => {
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, duration_ms, model_id, outcome
                      FROM transcription_history
                      ORDER BY id DESC",
                 )?;
@@ -516,7 +601,10 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
+                post_process_requested,
+                duration_ms,
+                model_id,
+                outcome
              FROM transcription_history
              ORDER BY timestamp DESC
              LIMIT 1",
@@ -543,7 +631,10 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
+                post_process_requested,
+                duration_ms,
+                model_id,
+                outcome
              FROM transcription_history
              WHERE transcription_text != ''
              ORDER BY timestamp DESC
@@ -597,7 +688,10 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
+                post_process_requested,
+                duration_ms,
+                model_id,
+                outcome
              FROM transcription_history
              WHERE id = ?1",
         )?;
@@ -666,7 +760,10 @@ mod tests {
                 transcription_text TEXT NOT NULL,
                 post_processed_text TEXT,
                 post_process_prompt TEXT,
-                post_process_requested BOOLEAN NOT NULL DEFAULT 0
+                post_process_requested BOOLEAN NOT NULL DEFAULT 0,
+                duration_ms INTEGER,
+                model_id TEXT,
+                outcome TEXT
             );",
         )
         .expect("create transcription_history table");

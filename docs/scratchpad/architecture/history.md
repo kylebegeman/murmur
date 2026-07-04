@@ -47,6 +47,9 @@ old tauri-plugin-sql/sqlx setup.
 2. `ADD COLUMN post_processed_text TEXT`
 3. `ADD COLUMN post_process_prompt TEXT`
 4. `ADD COLUMN post_process_requested BOOLEAN NOT NULL DEFAULT 0`
+5. `ADD COLUMN duration_ms INTEGER` (Recent Captures)
+6. `ADD COLUMN model_id TEXT` (Recent Captures)
+7. `ADD COLUMN outcome TEXT` (Recent Captures)
 
 `migrate_from_tauri_plugin_sql` runs first: if a legacy `_sqlx_migrations`
 table exists and `user_version == 0`, it copies `MAX(version)` of successful
@@ -61,17 +64,20 @@ manager").
 Table `transcription_history`, mapped to `HistoryEntry`
 (`src-tauri/src/managers/history.rs`), mirrored in `src/bindings.ts`:
 
-| Column                   | Type                       | Meaning                                                                                                        |
-| ------------------------ | -------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `id`                     | INTEGER PK AUTOINCREMENT   | entry id, also the pagination cursor                                                                           |
-| `file_name`              | TEXT NOT NULL              | WAV file name, `handy-{unix_seconds}.wav`                                                                      |
-| `timestamp`              | INTEGER NOT NULL           | capture time, `Utc::now().timestamp()` (seconds)                                                               |
-| `saved`                  | BOOLEAN NOT NULL DEFAULT 0 | star flag; saved rows are exempt from all cleanup                                                              |
-| `title`                  | TEXT NOT NULL              | local-time string `"%B %e, %Y - %l:%M%p"` (`format_timestamp_title`); UI ignores it and re-formats `timestamp` |
-| `transcription_text`     | TEXT NOT NULL              | raw transcript; **empty string when transcription failed** (enables retry)                                     |
-| `post_processed_text`    | TEXT NULL                  | LLM-processed text, or OpenCC Chinese-variant conversion output                                                |
-| `post_process_prompt`    | TEXT NULL                  | the prompt text used for post-processing                                                                       |
-| `post_process_requested` | BOOLEAN NOT NULL DEFAULT 0 | whether the capture came from the post-process shortcut binding; retry re-uses it                              |
+| Column                   | Type                       | Meaning                                                                                                                                                                                                                       |
+| ------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                     | INTEGER PK AUTOINCREMENT   | entry id, also the pagination cursor                                                                                                                                                                                          |
+| `file_name`              | TEXT NOT NULL              | WAV file name, `handy-{unix_seconds}.wav`                                                                                                                                                                                     |
+| `timestamp`              | INTEGER NOT NULL           | capture time, `Utc::now().timestamp()` (seconds)                                                                                                                                                                              |
+| `saved`                  | BOOLEAN NOT NULL DEFAULT 0 | star flag; saved rows are exempt from all cleanup                                                                                                                                                                             |
+| `title`                  | TEXT NOT NULL              | local-time string `"%B %e, %Y - %l:%M%p"` (`format_timestamp_title`); UI ignores it and re-formats `timestamp`                                                                                                                |
+| `transcription_text`     | TEXT NOT NULL              | raw transcript; **empty string when transcription failed** (enables retry)                                                                                                                                                    |
+| `post_processed_text`    | TEXT NULL                  | LLM-processed text, or OpenCC Chinese-variant conversion output                                                                                                                                                               |
+| `post_process_prompt`    | TEXT NULL                  | the prompt text used for post-processing                                                                                                                                                                                      |
+| `post_process_requested` | BOOLEAN NOT NULL DEFAULT 0 | whether the capture came from the post-process shortcut binding; retry re-uses it                                                                                                                                             |
+| `duration_ms`            | INTEGER NULL               | capture length in ms, from the 16 kHz sample count (`actions.rs`); `NULL` for pre-existing rows                                                                                                                               |
+| `model_id`               | TEXT NULL                  | id of the model that produced the transcript (`TranscriptionManager::get_current_model`)                                                                                                                                      |
+| `outcome`                | TEXT NULL                  | serialized `DictationOutcome` (`inserted`/`copied`/`not_delivered`/`empty_transcript`/`transcription_failed`/`paste_failed`); set after the paste resolves via `set_entry_outcome`; `NULL` when unknown (e.g. re-transcribed) |
 
 Audio files themselves are 16 kHz mono 16-bit PCM WAV
 (`src-tauri/src/audio_toolkit/audio/utils.rs` (`save_wav_file`)).
@@ -180,20 +186,22 @@ touched by cleanup, only by explicit `delete_history_entry`.
    `"toggled"` are deliberately ignored (the UI already applied optimistic
    updates for its own actions).
 5. Per-entry actions:
-   - Copy → `navigator.clipboard.writeText(entry.transcription_text)` (raw
-     text, not the post-processed text), disabled when transcript is empty.
+   - Copy → `commands.copyTranscript(entry.transcription_text)` (raw text, not
+     the post-processed text), disabled when transcript is empty. Routes through
+     the backend's Wayland-aware clipboard writer (not `navigator.clipboard`);
+     failure → `toast.error(settings.history.copyError)`.
    - Star → optimistic flip, `commands.toggleHistoryEntrySaved(id)`, reverted
      on failure (console only, no toast).
    - Retry → `commands.retryHistoryEntryTranscription(id)`; row shows a pulsing
-     "transcribing" state; error → `toast.error` + console.
+     "transcribing" state; error → `toast.error` + console. `update_transcription`
+     clears the `outcome` column to `NULL` (the re-transcribed text was not
+     re-inserted, so the prior outcome no longer applies).
    - Delete → optimistic removal, `commands.deleteHistoryEntry(id)`; on failure
-     reload page 1 only — the `toast.error(t("settings.history.deleteError"))`
-     in `handleDeleteEntry` (`HistorySettings.tsx:338`) is unreachable, because
-     `deleteAudioEntry` (`HistorySettings.tsx:204-217`) swallows both failure
-     modes (non-`"ok"` result → `loadPage()` + normal return; catch → log +
-     `loadPage()` without rethrow) and the generated binding converts backend
-     rejections to `{status:"error"}` instead of throwing
-     (`src/bindings.ts:800-807`).
+     `deleteAudioEntry` reloads page 1 **and rethrows**, so `handleDeleteEntry`'s
+     `toast.error(settings.history.deleteError)` now fires (previously
+     unreachable — the helper swallowed both failure modes).
+   - Metadata line → `model_id`, `duration_ms` (formatted), and an outcome badge
+     (colored by `settings.history.outcome.*`) render under each entry.
    - Audio playback → `AudioPlayer onLoadRequest` lazily calls
      `commands.getAudioFilePath(file_name)` then `convertFileSrc(path, "asset")`;
      on Linux instead reads the file with `@tauri-apps/plugin-fs` `readFile`
@@ -298,10 +306,11 @@ cosmetic mismatch only possible before settings load.
    If cleanup errors, `save_entry` returns `Err` after the INSERT and the
    `Added` event is never emitted: the row exists but the open History page
    will not show it until reload.
-4. **Cleanup deletions are invisible to the UI.** `cleanup_by_count` /
-   `cleanup_by_time` remove rows without emitting `Deleted` events, so an open
-   History page can list entries whose rows and WAVs are already gone (audio
-   load then fails; retry returns "Failed to load audio").
+4. **FIXED — Cleanup deletions are now visible to the UI.** `delete_entries_and_files`
+   (used by both `cleanup_by_count` and `cleanup_by_time`) emits a
+   `HistoryUpdatePayload::Deleted { id }` per removed row, and the History page's
+   `historyUpdatePayload` listener now handles `"deleted"` by filtering the row
+   out. An open panel no longer lists entries whose rows/WAVs are already gone.
 5. **Non-transactional delete.** `delete_entries_and_files` and `delete_entry`
    delete DB row and WAV independently; a failed file delete is log-only and
    orphans the WAV in `recordings/`. Conversely `delete_entry` deletes the
@@ -319,11 +328,11 @@ cosmetic mismatch only possible before settings load.
 8. **No periodic cleanup.** Retention only enforces on new captures or
    settings changes; with `never` retention, recordings grow unboundedly with
    no size indicator anywhere in the UI.
-9. **Failed captures look like ordinary rows.** A failed transcription stores
-   `transcription_text = ""`; the UI renders "transcriptionFailed" text and
-   disables copy, but nothing marks the row as retryable-at-a-glance beyond
-   that, and the only toast at capture time is the generic
-   `transcription-error` event.
+9. **PARTLY ADDRESSED — Failed captures are now marked.** A failed transcription
+   still stores `transcription_text = ""`, but the row now also carries
+   `outcome = "transcription_failed"`, which the panel renders as a red "Failed"
+   badge (distinct from an ordinary row). A successful retry clears the outcome.
+   The generic `transcription-error` toast at capture time is unchanged.
 10. **`get_audio_file_path` does not sanitize `file_name`** — it joins
     whatever string the frontend passes onto `recordings_dir`, and the asset
     scope allows `**`; combined, any renderer compromise can read arbitrary
@@ -334,11 +343,10 @@ cosmetic mismatch only possible before settings load.
     copied; Murmur's Recent Captures retry/copy design should make this
     explicit.
 12. **`Months3` is 90 days**, not calendar months (`cleanup_by_time`).
-13. **Optimistic UI reverts are console-only** for star toggles; delete
-    failures reset scroll position by reloading page 1 without any toast —
-    the delete-failure toast is unreachable because `deleteAudioEntry`
-    handles both failure modes internally and never rejects, and the
-    generated binding returns `{status:"error"}` rather than throwing.
+13. **Star toggle reverts are console-only** (no toast). Delete failures now
+    surface a toast: `deleteAudioEntry` reloads page 1 and rethrows, so
+    `handleDeleteEntry` catches and calls `toast.error` (previously the toast
+    was unreachable because the helper swallowed both failure modes).
 
 ## Murmur growth notes (Recent Captures panel)
 

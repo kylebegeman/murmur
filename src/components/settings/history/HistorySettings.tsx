@@ -38,6 +38,36 @@ const IconButton: React.FC<{
 
 const PAGE_SIZE = 30;
 
+// Insertion outcomes that indicate a real problem (rendered in a warning tone).
+const FAILURE_OUTCOMES = new Set(["transcription_failed", "paste_failed"]);
+
+// Maps a persisted `outcome` (see actions.rs DictationOutcome) to its i18n label
+// key. Unknown/`null` outcomes render no badge.
+const OUTCOME_LABEL_KEYS: Record<string, string> = {
+  inserted: "settings.history.outcome.inserted",
+  copied: "settings.history.outcome.copied",
+  not_delivered: "settings.history.outcome.notDelivered",
+  empty_transcript: "settings.history.outcome.emptyTranscript",
+  transcription_failed: "settings.history.outcome.transcriptionFailed",
+  paste_failed: "settings.history.outcome.pasteFailed",
+};
+
+// Human-readable capture length: "0.8s", "4.2s", or "1:05" past a minute.
+const formatDuration = (ms: number): string => {
+  // Round to whole seconds first, then decide the format, so rounding can never
+  // produce an invalid "1:60" (from Math.round(59.5)) or a "60.0s" that should
+  // have rolled over to "1:00".
+  const totalSeconds = ms / 1000;
+  const wholeSeconds = Math.round(totalSeconds);
+  if (wholeSeconds < 60) {
+    // Keep sub-minute captures at one decimal for a finer read.
+    return `${totalSeconds.toFixed(1)}s`;
+  }
+  const minutes = Math.floor(wholeSeconds / 60);
+  const seconds = wholeSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+};
+
 interface OpenRecordingsButtonProps {
   onClick: () => void;
   label: string;
@@ -140,9 +170,15 @@ export const HistorySettings: React.FC = () => {
         setEntries((prev) =>
           prev.map((e) => (e.id === payload.entry.id ? payload.entry : e)),
         );
+      } else if (payload.action === "deleted") {
+        // Retention cleanup deletes rows server-side; drop them from an open
+        // panel so it can't list a capture whose row and audio are gone. The
+        // filter is idempotent, so a user-initiated delete (already removed
+        // optimistically) plus this event is harmless.
+        setEntries((prev) => prev.filter((e) => e.id !== payload.id));
       }
-      // "deleted" and "toggled" are handled by optimistic updates only,
-      // so we intentionally ignore them here to avoid double-mutation.
+      // "toggled" is handled by optimistic updates only, so we intentionally
+      // ignore it here to avoid double-mutation.
     });
 
     return () => {
@@ -172,11 +208,22 @@ export const HistorySettings: React.FC = () => {
     }
   };
 
-  const copyToClipboard = async (text: string) => {
+  // Returns whether the copy actually succeeded, so the row can show its
+  // "copied" confirmation only on success (not alongside an error toast).
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    // Route through the backend so the copy uses the same Wayland-aware
+    // clipboard path as the paste pipeline (native `navigator.clipboard` is
+    // unreliable on Wayland).
     try {
-      await navigator.clipboard.writeText(text);
+      const result = await commands.copyTranscript(text);
+      if (result.status !== "ok") {
+        throw new Error(String(result.error));
+      }
+      return true;
     } catch (error) {
       console.error("Failed to copy to clipboard:", error);
+      toast.error(t("settings.history.copyError"));
+      return false;
     }
   };
 
@@ -204,15 +251,18 @@ export const HistorySettings: React.FC = () => {
   const deleteAudioEntry = async (id: number) => {
     // Optimistically remove
     setEntries((prev) => prev.filter((e) => e.id !== id));
+    // On failure, restore the list from the server and rethrow so the caller
+    // can surface the error (the generated binding resolves rejections to a
+    // `{status:"error"}` result rather than throwing, so we must check it).
     try {
       const result = await commands.deleteHistoryEntry(id);
       if (result.status !== "ok") {
-        // Reload on failure
         loadPage();
+        throw new Error(String(result.error));
       }
     } catch (error) {
-      console.error("Failed to delete entry:", error);
       loadPage();
+      throw error;
     }
   };
 
@@ -295,7 +345,7 @@ export const HistorySettings: React.FC = () => {
 interface HistoryEntryProps {
   entry: HistoryEntry;
   onToggleSaved: () => void;
-  onCopyText: () => void;
+  onCopyText: () => Promise<boolean>;
   getAudioUrl: (fileName: string) => Promise<string | null>;
   deleteAudio: (id: number) => Promise<void>;
   retryTranscription: (id: number) => Promise<void>;
@@ -320,14 +370,18 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
     [getAudioUrl, entry.file_name],
   );
 
-  const handleCopyText = () => {
+  const handleCopyText = async () => {
     if (!hasTranscription) {
       return;
     }
 
-    onCopyText();
-    setShowCopied(true);
-    setTimeout(() => setShowCopied(false), 2000);
+    // Only flash the "copied" confirmation if the copy actually succeeded;
+    // a failure surfaces its own error toast.
+    const copied = await onCopyText();
+    if (copied) {
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    }
   };
 
   const handleDeleteEntry = async () => {
@@ -353,10 +407,52 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
 
   const formattedDate = formatDateTime(String(entry.timestamp), i18n.language);
 
+  const outcomeKey = entry.outcome
+    ? OUTCOME_LABEL_KEYS[entry.outcome]
+    : undefined;
+  const outcomeIsFailure = entry.outcome
+    ? FAILURE_OUTCOMES.has(entry.outcome)
+    : false;
+
+  // Compact metadata line: model · duration · outcome badge (each optional).
+  const metaParts: React.ReactNode[] = [];
+  if (entry.model_id) {
+    metaParts.push(
+      <span
+        key="model"
+        className="font-mono text-[11px] truncate max-w-[16rem]"
+      >
+        {entry.model_id}
+      </span>,
+    );
+  }
+  if (entry.duration_ms != null) {
+    metaParts.push(
+      <span key="duration" className="tabular-nums">
+        {formatDuration(entry.duration_ms)}
+      </span>,
+    );
+  }
+
   return (
     <div className="px-4 py-2 pb-5 flex flex-col gap-3">
       <div className="flex justify-between items-center">
-        <p className="text-sm font-medium">{formattedDate}</p>
+        <div className="flex items-center gap-2 min-w-0">
+          <p className="text-sm font-medium">{formattedDate}</p>
+          {outcomeKey && (
+            <span
+              className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+                outcomeIsFailure
+                  ? "bg-red-500/12 text-red-500"
+                  : entry.outcome === "inserted" || entry.outcome === "copied"
+                    ? "bg-logo-primary/12 text-logo-primary"
+                    : "bg-mid-gray/15 text-text/60"
+              }`}
+            >
+              {t(outcomeKey)}
+            </span>
+          )}
+        </div>
         <div className="flex items-center">
           <IconButton
             onClick={handleCopyText}
@@ -438,6 +534,17 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
             ? entry.transcription_text
             : t("settings.history.transcriptionFailed")}
       </p>
+
+      {metaParts.length > 0 && (
+        <div className="flex items-center gap-2 text-[11px] text-text/45 -mt-1">
+          {metaParts.map((part, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span className="text-text/25">·</span>}
+              {part}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
 
       <AudioPlayer onLoadRequest={handleLoadAudio} className="w-full" />
     </div>

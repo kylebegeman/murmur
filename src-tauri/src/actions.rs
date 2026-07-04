@@ -45,6 +45,22 @@ pub enum DictationOutcome {
     PasteFailed,
 }
 
+impl DictationOutcome {
+    /// The persisted/serialized form (matches the `#[serde(rename_all =
+    /// "snake_case")]` wire name), used for the history `outcome` column.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            DictationOutcome::Inserted => "inserted",
+            DictationOutcome::Copied => "copied",
+            DictationOutcome::NotDelivered => "not_delivered",
+            DictationOutcome::NoSpeech => "no_speech",
+            DictationOutcome::EmptyTranscript => "empty_transcript",
+            DictationOutcome::TranscriptionFailed => "transcription_failed",
+            DictationOutcome::PasteFailed => "paste_failed",
+        }
+    }
+}
+
 /// Emitted exactly once at the end of every non-cancelled dictation take so
 /// the overlay (or any window) can tell the user what happened to their
 /// words. This is the "never allow silent failure after recording" event.
@@ -61,6 +77,16 @@ pub struct DictationResultEvent {
 const RESULT_HOLD_SUCCESS_MS: u64 = 1400;
 const RESULT_HOLD_INFO_MS: u64 = 1800;
 const RESULT_HOLD_FAILURE_MS: u64 = 8000;
+
+/// Persist a capture's insertion outcome onto its history row, if it has one.
+/// Best-effort: a failure here never affects the paste or the user.
+fn record_outcome(hm: &HistoryManager, entry_id: Option<i64>, outcome: DictationOutcome) {
+    if let Some(id) = entry_id {
+        if let Err(e) = hm.set_entry_outcome(id, outcome.as_str()) {
+            error!("Failed to record capture outcome: {}", e);
+        }
+    }
+}
 
 /// Drop guard that notifies the [`TranscriptionCoordinator`] when the
 /// transcription pipeline finishes — whether it completes normally or panics.
@@ -659,7 +685,8 @@ impl ShortcutAction for TranscribeAction {
             );
 
             let stop_recording_time = Instant::now();
-            if let Some(samples) = rm.stop_recording(&binding_id, cancel_generation) {
+            if let Some((samples, captured_len)) = rm.stop_recording(&binding_id, cancel_generation)
+            {
                 debug!(
                     "Recording stopped and samples retrieved in {:?}, sample count: {}",
                     stop_recording_time.elapsed(),
@@ -691,8 +718,13 @@ impl ShortcutAction for TranscribeAction {
                     );
                     change_tray_icon(&ah, TrayIconState::Idle);
                 } else {
-                    // Save WAV concurrently with transcription
+                    // Save WAV concurrently with transcription. `sample_count`
+                    // is the saved (possibly padded) buffer length, used to
+                    // verify the WAV round-trip; duration uses the true captured
+                    // length so short captures aren't inflated by the padding.
                     let sample_count = samples.len();
+                    let duration_ms = Some((captured_len as i64) * 1000 / 16_000);
+                    let model_id = tm.get_current_model();
                     let file_name = format!("murmur-{}.wav", chrono::Utc::now().timestamp());
                     let wav_path = hm.recordings_dir().join(&file_name);
                     let wav_path_for_verify = wav_path.clone();
@@ -774,20 +806,39 @@ impl ShortcutAction for TranscribeAction {
                                 return;
                             }
 
-                            // Save to history if WAV was saved
-                            if wav_saved {
-                                if let Err(err) = hm.save_entry(
+                            // Save to history if WAV was saved. Keep the entry id
+                            // so the insertion outcome can be recorded on it once
+                            // the paste attempt below resolves.
+                            let entry_id = if wav_saved {
+                                match hm.save_entry(
                                     file_name,
                                     transcription,
                                     post_process,
                                     processed.post_processed_text.clone(),
                                     processed.post_process_prompt.clone(),
+                                    duration_ms,
+                                    model_id.clone(),
+                                    None,
                                 ) {
-                                    error!("Failed to save history entry: {}", err);
+                                    Ok(entry) => Some(entry.id),
+                                    Err(err) => {
+                                        error!("Failed to save history entry: {}", err);
+                                        None
+                                    }
                                 }
-                            }
+                            } else {
+                                None
+                            };
 
                             if processed.final_text.is_empty() {
+                                if let Some(id) = entry_id {
+                                    if let Err(e) = hm.set_entry_outcome(
+                                        id,
+                                        DictationOutcome::EmptyTranscript.as_str(),
+                                    ) {
+                                        error!("Failed to record capture outcome: {}", e);
+                                    }
+                                }
                                 utils::show_result_overlay(
                                     &ah,
                                     DictationResultEvent {
@@ -800,6 +851,8 @@ impl ShortcutAction for TranscribeAction {
                                 );
                                 change_tray_icon(&ah, TrayIconState::Idle);
                             } else {
+                                let hm_for_paste = Arc::clone(&hm);
+                                let hm_for_dispatch_fail = Arc::clone(&hm);
                                 let ah_clone = ah.clone();
                                 let paste_time = Instant::now();
                                 let final_text = processed.final_text;
@@ -844,6 +897,7 @@ impl ShortcutAction for TranscribeAction {
                                                     RESULT_HOLD_INFO_MS,
                                                 ),
                                             };
+                                            record_outcome(&hm_for_paste, entry_id, outcome);
                                             utils::show_result_overlay(
                                                 &ah_clone,
                                                 DictationResultEvent {
@@ -858,6 +912,11 @@ impl ShortcutAction for TranscribeAction {
                                         Err(e) => {
                                             error!("Failed to paste transcription: {}", e);
                                             let _ = ah_clone.emit("paste-error", e.clone());
+                                            record_outcome(
+                                                &hm_for_paste,
+                                                entry_id,
+                                                DictationOutcome::PasteFailed,
+                                            );
                                             utils::show_result_overlay(
                                                 &ah_clone,
                                                 DictationResultEvent {
@@ -877,6 +936,11 @@ impl ShortcutAction for TranscribeAction {
                                     let detail =
                                         format!("Could not dispatch paste to main thread: {e:?}");
                                     let _ = ah.emit("paste-error", detail.clone());
+                                    record_outcome(
+                                        &hm_for_dispatch_fail,
+                                        entry_id,
+                                        DictationOutcome::PasteFailed,
+                                    );
                                     utils::show_result_overlay(
                                         &ah,
                                         DictationResultEvent {
@@ -905,7 +969,8 @@ impl ShortcutAction for TranscribeAction {
                             // Surface the failure to the UI (toast). The full
                             // message is also in murmur.log via the line above.
                             let _ = ah.emit("transcription-error", err.to_string());
-                            // Save entry with empty text so user can retry
+                            // Save entry with empty text so user can retry. The
+                            // failure outcome is known now, so store it directly.
                             if wav_saved {
                                 if let Err(save_err) = hm.save_entry(
                                     file_name,
@@ -913,6 +978,11 @@ impl ShortcutAction for TranscribeAction {
                                     post_process,
                                     None,
                                     None,
+                                    duration_ms,
+                                    model_id.clone(),
+                                    Some(
+                                        DictationOutcome::TranscriptionFailed.as_str().to_string(),
+                                    ),
                                 ) {
                                     error!("Failed to save failed history entry: {}", save_err);
                                 }

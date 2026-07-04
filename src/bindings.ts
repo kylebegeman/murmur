@@ -936,7 +936,21 @@ export type EngineType =
  */
 "TranscribeCpp" | "Parakeet" | "Moonshine" | "MoonshineStreaming" | "SenseVoice" | "GigaAM" | "Canary" | "Cohere"
 export type GpuDeviceOption = { id: number; name: string; total_vram_mb: number }
-export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean }
+export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean; 
+/**
+ * Capture length in milliseconds (from the recorded sample count).
+ */
+duration_ms: number | null; 
+/**
+ * Id of the model that produced the transcript.
+ */
+model_id: string | null; 
+/**
+ * Insertion outcome (serialized `DictationOutcome`): `inserted`, `copied`,
+ * `not_delivered`, `empty_transcript`, `transcription_failed`,
+ * `paste_failed`. `None` when unknown (e.g. re-transcribed, not re-inserted).
+ */
+outcome: string | null }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation
