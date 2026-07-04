@@ -166,6 +166,7 @@
         "none": "No shortcuts configured",
         "notFound": "Shortcut not found",
         "pressKeys": "Press keys...",
+        "setFn": "Set shortcut to fn",
         "bindings": {
           "transcribe": {
             "name": "Transcribe Shortcut",
