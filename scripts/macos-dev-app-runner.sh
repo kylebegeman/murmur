@@ -69,8 +69,6 @@ if [[ "$has_bin" -eq 0 ]]; then
   build_args+=("--bin" "murmur")
 fi
 
-cargo "${build_args[@]}"
-
 if [[ -n "$target_triple" ]]; then
   target_base="target/$target_triple/$profile"
 else
@@ -83,6 +81,104 @@ app_dir="$src_tauri_dir/$target_base/dev-bundle/Murmur.app"
 contents_dir="$app_dir/Contents"
 macos_dir="$contents_dir/MacOS"
 resources_dir="$contents_dir/Resources"
+
+stop_running_dev_app() {
+  local binary_pattern="$app_dir/Contents/MacOS/murmur"
+
+  if pgrep -f "$binary_pattern" >/dev/null 2>&1; then
+    echo "Stopping existing Murmur dev app..."
+    pkill -TERM -f "$binary_pattern" 2>/dev/null || true
+
+    for _ in {1..25}; do
+      if ! pgrep -f "$binary_pattern" >/dev/null 2>&1; then
+        break
+      fi
+      sleep 0.2
+    done
+
+    pkill -KILL -f "$binary_pattern" 2>/dev/null || true
+  fi
+
+  pkill -f "/usr/bin/open .*${app_dir}" 2>/dev/null || true
+}
+
+list_codesign_identities() {
+  if [[ -n "${MURMUR_CODESIGN_IDENTITY:-}" ]]; then
+    printf '%s\n' "$MURMUR_CODESIGN_IDENTITY"
+    return
+  fi
+
+  {
+    security find-identity -v -p codesigning 2>/dev/null \
+      | awk -F '"' '/Developer ID Application:/ { print $2 }'
+    security find-identity -v -p codesigning 2>/dev/null \
+      | awk -F '"' '/Apple Development:/ { print $2 }'
+  } | awk 'NF && !seen[$0]++'
+}
+
+sign_with_identity() {
+  local identity="$1"
+  local err_log="${TMPDIR:-/tmp}/murmur-codesign.err"
+  local codesign_args=(
+    --force
+    --timestamp=none
+    --options
+    runtime
+    --entitlements
+    Entitlements.plist
+  )
+
+  : > "$err_log"
+
+  codesign "${codesign_args[@]}" --sign "$identity" "$macos_dir/murmur" >/dev/null 2>>"$err_log" \
+    && codesign "${codesign_args[@]}" --deep --sign "$identity" "$app_dir" >/dev/null 2>>"$err_log"
+}
+
+sign_app_bundle() {
+  local identity=""
+  local selected_identity=""
+
+  while IFS= read -r identity; do
+    if [[ -z "$identity" ]]; then
+      continue
+    fi
+
+    echo "Signing bundled macOS dev app with identity: $identity"
+    if sign_with_identity "$identity"; then
+      selected_identity="$identity"
+      break
+    fi
+
+    echo "Code signing failed with identity: $identity" >&2
+  done < <(list_codesign_identities)
+
+  if [[ -z "$selected_identity" ]]; then
+    if [[ "${MURMUR_ALLOW_ADHOC_CODESIGN:-}" == "1" ]]; then
+      echo "WARNING: Falling back to ad-hoc signing. macOS Accessibility trust will not survive rebuilds." >&2
+      sign_with_identity "-"
+      selected_identity="-"
+    else
+      cat >&2 <<'EOF'
+No certificate-backed macOS code signing identity worked.
+
+Accessibility trust is keyed to the bundle identifier and code-signing requirement.
+Ad-hoc signing would recreate the broken cdhash-only requirement, so this runner
+will not fall back to it unless MURMUR_ALLOW_ADHOC_CODESIGN=1 is set.
+
+Install an Apple Development or Developer ID Application certificate, or set
+MURMUR_CODESIGN_IDENTITY to a specific identity from:
+
+  security find-identity -v -p codesigning
+EOF
+      exit 1
+    fi
+  fi
+
+  echo "Signed bundled macOS dev app with: $selected_identity"
+}
+
+stop_running_dev_app
+cargo "${build_args[@]}"
 
 if [[ ! -x "$binary_path" ]]; then
   echo "Expected built binary at $binary_path, but it was not found." >&2
@@ -133,8 +229,7 @@ PLIST
 
 xattr -dr com.apple.quarantine "$app_dir" 2>/dev/null || true
 
-codesign --force --sign - --options runtime --entitlements Entitlements.plist "$macos_dir/murmur" >/dev/null
-codesign --force --deep --sign - --options runtime --entitlements Entitlements.plist "$app_dir" >/dev/null
+sign_app_bundle
 
 lsregister="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 if [[ -x "$lsregister" ]]; then
