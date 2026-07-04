@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import "./RecordingOverlay.css";
 import { commands, events } from "@/bindings";
 import type {
+  DictationOutcome,
+  DictationResultEvent,
   StreamPhase,
   StreamPhaseEvent,
   StreamTextEvent,
@@ -17,6 +19,30 @@ type OverlayState = "recording" | "streaming" | "transcribing" | "processing";
 // Number of reactive bars in the waveform (the simple, smoothed style shared by
 // every overlay form). Mic levels arrive as 16 FFT buckets; we take the first N.
 const WAVE_BARS = 9;
+
+// One label per terminal outcome (see actions.rs DictationOutcome). Explicit
+// map instead of a computed key so the keys stay greppable.
+const RESULT_LABEL_KEYS: Record<DictationOutcome, string> = {
+  inserted: "overlay.result.inserted",
+  copied: "overlay.result.copied",
+  not_delivered: "overlay.result.notDelivered",
+  no_speech: "overlay.result.noSpeech",
+  empty_transcript: "overlay.result.emptyTranscript",
+  transcription_failed: "overlay.result.transcriptionFailed",
+  paste_failed: "overlay.result.pasteFailed",
+};
+
+// Visual tint per outcome: ok = delivered somewhere, warn = nothing to
+// deliver (not an error), err = something actually failed.
+const RESULT_KIND: Record<DictationOutcome, "ok" | "warn" | "err"> = {
+  inserted: "ok",
+  copied: "ok",
+  not_delivered: "warn",
+  no_speech: "warn",
+  empty_transcript: "warn",
+  transcription_failed: "err",
+  paste_failed: "err",
+};
 
 const RecordingOverlay: React.FC = () => {
   const { t } = useTranslation();
@@ -39,6 +65,12 @@ const RecordingOverlay: React.FC = () => {
   // True once live text overflows the cap. A top overlay fades its top edge only
   // while overflowing, so the resting first line stays crisp flush under the pill.
   const [overflowing, setOverflowing] = useState(false);
+  // Terminal outcome of the take (inserted / failed / …). While set, the row
+  // area shows the result instead of the waveform/spinner; Rust hides the
+  // overlay after an outcome-dependent hold.
+  const [result, setResult] = useState<DictationResultEvent | null>(null);
+  // Whether the recovery "Copy" action has been used for the current result.
+  const [copiedTranscript, setCopiedTranscript] = useState(false);
 
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
   // Live-text scroll-back: the text region "sticks" to the newest line while the
@@ -66,6 +98,8 @@ const RecordingOverlay: React.FC = () => {
         }
         const overlayState = event.payload as OverlayState;
         setState(overlayState);
+        setResult(null); // a new take always clears the previous outcome
+        setCopiedTranscript(false);
         if (overlayState === "recording" || overlayState === "streaming") {
           setStreamText({ committed: "", tentative: "" });
         }
@@ -104,24 +138,33 @@ const RecordingOverlay: React.FC = () => {
         if (payload.kind) setWorkKind(payload.kind);
       });
 
+      const unlistenResult = await events.dictationResultEvent.listen(
+        (event) => {
+          setResult(event.payload);
+          setCopiedTranscript(false);
+        },
+      );
+
       return () => {
         unlistenShow();
         unlistenHide();
         unlistenLevel();
         unlistenStream();
         unlistenPhase();
+        unlistenResult();
       };
     };
 
     setupEventListeners();
   }, []);
 
-  // Elapsed timer while the Live overlay is visible.
+  // Elapsed timer while the Live overlay is visible (stops once a result is
+  // showing — the take is over).
   useEffect(() => {
-    if (state !== "streaming" || !isVisible) return;
+    if (state !== "streaming" || !isVisible || result) return;
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(id);
-  }, [state, isVisible]);
+  }, [state, isVisible, result]);
 
   // Stick to the bottom as text streams in — but only while pinned, so a user who
   // has scrolled up to read history isn't yanked back down by the next chunk.
@@ -207,6 +250,67 @@ const RecordingOverlay: React.FC = () => {
     </div>
   );
 
+  // status icon (left) | outcome label (center) | recovery + dismiss (right).
+  // The one row that answers "what happened to my words?" after every take.
+  const resultRow = (r: DictationResultEvent) => {
+    const kind = RESULT_KIND[r.outcome];
+    // Offer Copy whenever a transcript exists that didn't already land
+    // somewhere the user can paste from.
+    const canCopy =
+      !!r.transcript && r.outcome !== "inserted" && r.outcome !== "copied";
+    return (
+      <div className="sbase">
+        <div className="sbase-l">
+          <span className={`sicon ${kind}`}>
+            {kind === "ok" ? (
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M3.5 8.5 L6.5 11.5 L12.5 4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path
+                  d="M8 3.4 L8 9.4"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+                <circle cx="8" cy="12.4" r="1.1" fill="currentColor" />
+              </svg>
+            )}
+          </span>
+        </div>
+        <span className="swork-label sresult-label">
+          {t(RESULT_LABEL_KEYS[r.outcome])}
+        </span>
+        <div className="sbase-r">
+          {canCopy && (
+            <button
+              className="scopy"
+              disabled={copiedTranscript}
+              onClick={async () => {
+                if (!r.transcript) return;
+                const res = await commands.copyTranscript(r.transcript);
+                if (res.status === "ok") setCopiedTranscript(true);
+              }}
+            >
+              {copiedTranscript
+                ? t("overlay.result.copiedConfirm")
+                : t("common.copy")}
+            </button>
+          )}
+          {kind === "err" && cancelBtn}
+        </div>
+      </div>
+    );
+  };
+
   // ---- Live overlay: a pill that sculpts open into a panel ----
   if (state === "streaming") {
     const hasText =
@@ -224,8 +328,8 @@ const RecordingOverlay: React.FC = () => {
         <div
           key={session}
           className={`scard ${open ? "open" : ""} ${collapsed ? "working" : ""} ${
-            isVisible ? "" : "leaving"
-          }`}
+            result && !open ? "cresult" : ""
+          } ${isVisible ? "" : "leaving"}`}
         >
           <div className="stext">
             <div className="stext-clip">
@@ -246,14 +350,16 @@ const RecordingOverlay: React.FC = () => {
               </div>
             </div>
           </div>
-          {working
-            ? workingRow(
-                workKind === "polishing"
-                  ? t("overlay.processing")
-                  : t("overlay.transcribing"),
-                true,
-              )
-            : listeningRow(open, true)}
+          {result
+            ? resultRow(result)
+            : working
+              ? workingRow(
+                  workKind === "polishing"
+                    ? t("overlay.processing")
+                    : t("overlay.transcribing"),
+                  true,
+                )
+              : listeningRow(open, true)}
         </div>
       </div>
     );
@@ -274,9 +380,15 @@ const RecordingOverlay: React.FC = () => {
       className={`ov-stage ${position} ov-fade ${isVisible ? "show" : ""}`}
     >
       <div
-        className={`scard compact ${working && isVisible ? "cworking" : ""}`}
+        className={`scard compact ${
+          (working || result) && isVisible ? "cworking" : ""
+        } ${result && isVisible ? "cresult" : ""}`}
       >
-        {working ? workingRow(workLabel, true) : listeningRow(false, true)}
+        {result
+          ? resultRow(result)
+          : working
+            ? workingRow(workLabel, true)
+            : listeningRow(false, true)}
       </div>
     </div>
   );

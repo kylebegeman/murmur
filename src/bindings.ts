@@ -471,6 +471,22 @@ async showMainWindowCommand() : Promise<Result<null, string>> {
 async cancelOperation() : Promise<void> {
     await TAURI_INVOKE("cancel_operation");
 },
+/**
+ * Copy arbitrary transcript text to the system clipboard. Used by the
+ * overlay's recovery action after a failed paste — the overlay webview has
+ * no clipboard-manager capability, so the write happens here in Rust.
+ * Routes through the shared, Wayland-aware clipboard writer so the recovery
+ * path (which skews toward Linux, where paste is most fragile) behaves like
+ * the paste pipeline.
+ */
+async copyTranscript(text: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("copy_transcript", { text }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async isPortable() : Promise<boolean> {
     return await TAURI_INVOKE("is_portable");
 },
@@ -849,10 +865,12 @@ async isLaptop() : Promise<Result<boolean, string>> {
 
 
 export const events = __makeEvents__<{
+dictationResultEvent: DictationResultEvent,
 historyUpdatePayload: HistoryUpdatePayload,
 streamPhaseEvent: StreamPhaseEvent,
 streamTextEvent: StreamTextEvent
 }>({
+dictationResultEvent: "dictation-result-event",
 historyUpdatePayload: "history-update-payload",
 streamPhaseEvent: "stream-phase-event",
 streamTextEvent: "stream-text-event"
@@ -890,6 +908,26 @@ export type AvailableAccelerators = { transcribe: string[]; ort: string[]; gpu_d
 export type BindingResponse = { success: boolean; binding: ShortcutBinding | null; error: string | null }
 export type ClipboardHandling = "dont_modify" | "copy_to_clipboard"
 export type CustomSounds = { start: boolean; stop: boolean }
+/**
+ * Terminal outcome of a dictation take, from the user's point of view.
+ * Cancellation is deliberately not an outcome — the user asked for it, so
+ * silence is the correct response there.
+ */
+export type DictationOutcome = "inserted" | "copied" | "not_delivered" | "no_speech" | "empty_transcript" | "transcription_failed" | "paste_failed"
+/**
+ * Emitted exactly once at the end of every non-cancelled dictation take so
+ * the overlay (or any window) can tell the user what happened to their
+ * words. This is the "never allow silent failure after recording" event.
+ */
+export type DictationResultEvent = { outcome: DictationOutcome; 
+/**
+ * Failure detail (error string) when the outcome is a failure.
+ */
+detail: string | null; 
+/**
+ * The final transcript when one exists — powers recovery actions.
+ */
+transcript: string | null }
 export type EngineType = 
 /**
  * Any GGML/GGUF model loaded through transcribe-cpp (Whisper, Parakeet,
@@ -914,7 +952,7 @@ export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type ModelInfo = { id: string; name: string; description: string; filename: string; source: ModelSource; size_mb: number; is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number; supports_translation: boolean; is_recommended: boolean; supported_languages: string[]; supports_language_selection: boolean; is_custom: boolean; supports_streaming: boolean; supports_language_detection: boolean }
 export type ModelLoadStatus = { is_loaded: boolean; current_model: string | null }
 /**
- * Where a model comes from and how Handy obtains it — the routing discriminant
+ * Where a model comes from and how Murmur obtains it — the routing discriminant
  * for downloading and on-disk resolution.
  */
 export type ModelSource = 

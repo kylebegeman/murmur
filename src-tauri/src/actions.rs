@@ -2,6 +2,7 @@
 use crate::apple_intelligence;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error, VadPolicy};
+use crate::clipboard::PasteDelivery;
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
@@ -28,6 +29,38 @@ struct RecordingErrorEvent {
     error_type: String,
     detail: Option<String>,
 }
+
+/// Terminal outcome of a dictation take, from the user's point of view.
+/// Cancellation is deliberately not an outcome — the user asked for it, so
+/// silence is the correct response there.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum DictationOutcome {
+    Inserted,
+    Copied,
+    NotDelivered,
+    NoSpeech,
+    EmptyTranscript,
+    TranscriptionFailed,
+    PasteFailed,
+}
+
+/// Emitted exactly once at the end of every non-cancelled dictation take so
+/// the overlay (or any window) can tell the user what happened to their
+/// words. This is the "never allow silent failure after recording" event.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, specta::Type, tauri_specta::Event)]
+pub struct DictationResultEvent {
+    pub outcome: DictationOutcome,
+    /// Failure detail (error string) when the outcome is a failure.
+    pub detail: Option<String>,
+    /// The final transcript when one exists — powers recovery actions.
+    pub transcript: Option<String>,
+}
+
+/// How long the overlay holds each result before fading out.
+const RESULT_HOLD_SUCCESS_MS: u64 = 1400;
+const RESULT_HOLD_INFO_MS: u64 = 1800;
+const RESULT_HOLD_FAILURE_MS: u64 = 8000;
 
 /// Drop guard that notifies the [`TranscriptionCoordinator`] when the
 /// transcription pipeline finishes — whether it completes normally or panics.
@@ -646,7 +679,16 @@ impl ShortcutAction for TranscribeAction {
                     // Tear down any streaming worker so its channel doesn't leak
                     // and block the next start_stream.
                     tm.cancel_stream();
-                    utils::hide_recording_overlay(&ah);
+                    utils::show_result_overlay(
+                        &ah,
+                        DictationResultEvent {
+                            outcome: DictationOutcome::NoSpeech,
+                            detail: None,
+                            transcript: None,
+                        },
+                        RESULT_HOLD_INFO_MS,
+                        utils::current_overlay_session(),
+                    );
                     change_tray_icon(&ah, TrayIconState::Idle);
                 } else {
                     // Save WAV concurrently with transcription
@@ -746,12 +788,32 @@ impl ShortcutAction for TranscribeAction {
                             }
 
                             if processed.final_text.is_empty() {
-                                utils::hide_recording_overlay(&ah);
+                                utils::show_result_overlay(
+                                    &ah,
+                                    DictationResultEvent {
+                                        outcome: DictationOutcome::EmptyTranscript,
+                                        detail: None,
+                                        transcript: None,
+                                    },
+                                    RESULT_HOLD_INFO_MS,
+                                    utils::current_overlay_session(),
+                                );
                                 change_tray_icon(&ah, TrayIconState::Idle);
                             } else {
                                 let ah_clone = ah.clone();
                                 let paste_time = Instant::now();
                                 let final_text = processed.final_text;
+                                // The closure below consumes `final_text`; keep a copy
+                                // for the dispatch-failure path so even that error is
+                                // reported with the transcript attached.
+                                let text_if_dispatch_fails = final_text.clone();
+                                // Capture the overlay session now, before handing off to
+                                // the main thread. The paste runs after this take's async
+                                // task ends and the coordinator returns to Idle, so a new
+                                // take can start and take over the overlay while the paste
+                                // is still running; the captured id lets show_result_overlay
+                                // drop this (now stale) result instead of hiding the new take.
+                                let overlay_session = utils::current_overlay_session();
                                 let rm_for_paste = Arc::clone(&rm);
                                 ah.run_on_main_thread(move || {
                                     if rm_for_paste.was_cancelled_since(cancel_generation) {
@@ -761,22 +823,70 @@ impl ShortcutAction for TranscribeAction {
                                         return;
                                     }
 
+                                    let transcript = final_text.clone();
                                     match utils::paste(final_text, ah_clone.clone()) {
-                                        Ok(()) => debug!(
-                                            "Text pasted successfully in {:?}",
-                                            paste_time.elapsed()
-                                        ),
+                                        Ok(delivery) => {
+                                            debug!(
+                                                "Paste finished ({:?}) in {:?}",
+                                                delivery,
+                                                paste_time.elapsed()
+                                            );
+                                            let (outcome, hold_ms) = match delivery {
+                                                PasteDelivery::Pasted => (
+                                                    DictationOutcome::Inserted,
+                                                    RESULT_HOLD_SUCCESS_MS,
+                                                ),
+                                                PasteDelivery::ClipboardOnly => {
+                                                    (DictationOutcome::Copied, RESULT_HOLD_INFO_MS)
+                                                }
+                                                PasteDelivery::NotDelivered => (
+                                                    DictationOutcome::NotDelivered,
+                                                    RESULT_HOLD_INFO_MS,
+                                                ),
+                                            };
+                                            utils::show_result_overlay(
+                                                &ah_clone,
+                                                DictationResultEvent {
+                                                    outcome,
+                                                    detail: None,
+                                                    transcript: Some(transcript),
+                                                },
+                                                hold_ms,
+                                                overlay_session,
+                                            );
+                                        }
                                         Err(e) => {
                                             error!("Failed to paste transcription: {}", e);
-                                            let _ = ah_clone.emit("paste-error", ());
+                                            let _ = ah_clone.emit("paste-error", e.clone());
+                                            utils::show_result_overlay(
+                                                &ah_clone,
+                                                DictationResultEvent {
+                                                    outcome: DictationOutcome::PasteFailed,
+                                                    detail: Some(e),
+                                                    transcript: Some(transcript),
+                                                },
+                                                RESULT_HOLD_FAILURE_MS,
+                                                overlay_session,
+                                            );
                                         }
                                     }
-                                    utils::hide_recording_overlay(&ah_clone);
                                     change_tray_icon(&ah_clone, TrayIconState::Idle);
                                 })
                                 .unwrap_or_else(|e| {
                                     error!("Failed to run paste on main thread: {:?}", e);
-                                    utils::hide_recording_overlay(&ah);
+                                    let detail =
+                                        format!("Could not dispatch paste to main thread: {e:?}");
+                                    let _ = ah.emit("paste-error", detail.clone());
+                                    utils::show_result_overlay(
+                                        &ah,
+                                        DictationResultEvent {
+                                            outcome: DictationOutcome::PasteFailed,
+                                            detail: Some(detail),
+                                            transcript: Some(text_if_dispatch_fails),
+                                        },
+                                        RESULT_HOLD_FAILURE_MS,
+                                        overlay_session,
+                                    );
                                     change_tray_icon(&ah, TrayIconState::Idle);
                                 });
                             }
@@ -807,7 +917,16 @@ impl ShortcutAction for TranscribeAction {
                                     error!("Failed to save failed history entry: {}", save_err);
                                 }
                             }
-                            utils::hide_recording_overlay(&ah);
+                            utils::show_result_overlay(
+                                &ah,
+                                DictationResultEvent {
+                                    outcome: DictationOutcome::TranscriptionFailed,
+                                    detail: Some(err.to_string()),
+                                    transcript: None,
+                                },
+                                RESULT_HOLD_FAILURE_MS,
+                                utils::current_overlay_session(),
+                            );
                             change_tray_icon(&ah, TrayIconState::Idle);
                         }
                     }

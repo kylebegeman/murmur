@@ -1,7 +1,7 @@
 use crate::input;
 use crate::settings;
 use crate::settings::{OverlayPosition, OverlayStyle};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
 
 #[cfg(not(target_os = "macos"))]
@@ -356,6 +356,10 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
 }
 
 fn show_overlay_state(app_handle: &AppHandle, state: &str) {
+    // A show starts a new visual session: any delayed hide scheduled by an
+    // earlier take must not fire on this one (see OVERLAY_SESSION).
+    OVERLAY_SESSION.fetch_add(1, Ordering::Relaxed);
+
     // Whether the overlay shows at all is governed by overlay_style; position
     // only chooses Top vs Bottom placement.
     let settings = settings::get_settings(app_handle);
@@ -442,20 +446,87 @@ pub fn update_overlay_position(app_handle: &AppHandle) {
     }
 }
 
-/// Hides the recording overlay window with fade-out animation
-pub fn hide_recording_overlay(app_handle: &AppHandle) {
-    // Always hide the overlay regardless of settings - if setting was changed while recording,
-    // we still want to hide it properly
+// Monotonic id of the current overlay "visual session". Bumped on every
+// show; delayed hides and deferred results capture the id when scheduled and
+// no-op if a newer show happened in the meantime. This closes the race where
+// work from take N (a 300 ms hide, or a result row produced by a paste still
+// running on the main thread after the coordinator went Idle) fires late and
+// blanks or overwrites the freshly shown take N+1.
+static OVERLAY_SESSION: AtomicU64 = AtomicU64::new(0);
+
+/// The overlay session id as of now. Capture this at the point a take hands
+/// off to deferred work (e.g. scheduling a paste on the main thread) and pass
+/// it back into [`show_result_overlay`] so the result is suppressed if a newer
+/// take has taken over the overlay in the meantime.
+pub fn current_overlay_session() -> u64 {
+    OVERLAY_SESSION.load(Ordering::Relaxed)
+}
+
+/// Emits `hide-overlay` (fade-out) and hides the native window after the
+/// animation, but only while `session` is still current — a newer show
+/// supersedes both. Both the emit and the native hide are gated so a hide
+/// from take N can never fade take N+1.
+fn hide_overlay_for_session(app_handle: &AppHandle, session: u64) {
+    if OVERLAY_SESSION.load(Ordering::Relaxed) != session {
+        return;
+    }
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
-        // Emit event to trigger fade-out animation
         let _ = overlay_window.emit("hide-overlay", ());
-        // Hide the window after a short delay to allow animation to complete
         let window_clone = overlay_window.clone();
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(300));
-            let _ = window_clone.hide();
+            if OVERLAY_SESSION.load(Ordering::Relaxed) == session {
+                let _ = window_clone.hide();
+            }
         });
     }
+}
+
+/// Hides the recording overlay window with fade-out animation. Used by the
+/// immediate teardown paths (cancellation, recording errors): always hides
+/// against the current session, so it wins over any in-flight show.
+pub fn hide_recording_overlay(app_handle: &AppHandle) {
+    hide_overlay_for_session(app_handle, OVERLAY_SESSION.load(Ordering::Relaxed));
+}
+
+/// Shows a dictation result (inserted / copied / failed / …) in the overlay,
+/// then hides it after `hold_ms`.
+///
+/// `expected_session` is the overlay session captured when this take last
+/// touched the overlay. If a newer take has since taken over, the result is
+/// stale UI and is dropped entirely (no emit, no hide) — the new take owns the
+/// overlay.
+///
+/// The result **event** is emitted regardless of `overlay_style` (any window
+/// may listen, and the "never silent after a recording" contract must hold
+/// even on Linux where the overlay defaults to None). Only the visible
+/// overlay's timed hide is gated on the overlay being enabled.
+pub fn show_result_overlay(
+    app_handle: &AppHandle,
+    event: crate::actions::DictationResultEvent,
+    hold_ms: u64,
+    expected_session: u64,
+) {
+    if OVERLAY_SESSION.load(Ordering::Relaxed) != expected_session {
+        // A newer take has taken over the overlay; this result is stale.
+        return;
+    }
+
+    use tauri_specta::Event as _;
+    if let Err(e) = event.emit(app_handle) {
+        log::warn!("Failed to emit dictation result event: {e}");
+    }
+
+    if settings::get_settings(app_handle).overlay_style == OverlayStyle::None {
+        // Nothing is visible to hold or hide; the event above is the only feedback.
+        return;
+    }
+
+    let app = app_handle.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(hold_ms));
+        hide_overlay_for_session(&app, expected_session);
+    });
 }
 
 // Cached "overlay is enabled" flag, kept in sync with overlay_style. Avoids

@@ -1,5 +1,8 @@
 import React from "react";
 
+// Brand wordmark, deliberately not translated (see CONTRIBUTING_TRANSLATIONS.md).
+const WORDMARK = "murmur";
+
 const MurmurTextLogo = ({
   width,
   height,
@@ -18,7 +21,6 @@ const MurmurTextLogo = ({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* eslint-disable-next-line i18next/no-literal-string */}
       <text
         x="465"
         y="164"
@@ -29,7 +31,7 @@ const MurmurTextLogo = ({
         fontSize="220"
         fontWeight="600"
       >
-        murmur
+        {WORDMARK}
       </text>
     </svg>
   );

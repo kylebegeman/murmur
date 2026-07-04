@@ -42,9 +42,9 @@ tccutil reset All com.kylebegeman.murmur
 
 The app is **ad-hoc signed** (`signingIdentity: "-"`). macOS TCC keys grants to the code signature hash, so **every rebuild invalidates the Accessibility grant**: the System Settings checkbox may still appear ON while the app is actually untrusted. If permission behavior looks inconsistent after a rebuild, manually remove the app from System Settings → Privacy & Security → Accessibility (minus button), re-add it, or run the `tccutil` resets above. Budget for this in every dev-build QA pass.
 
-### 0.4 A note on error toasts
+### 0.4 A note on error toasts and the overlay result row
 
-All error toasts (`recording-error`, `transcription-error`, `paste-error`, model errors) render **only in the main settings window**. For any test that expects a toast, keep the main window visible. If the window is hidden, the only evidence is `murmur.log`.
+All error toasts (`recording-error`, `transcription-error`, `paste-error`, model errors) render **only in the main settings window**. However, terminal dictation outcomes are now **also shown in the overlay** as a result row (Inserted / Copied to clipboard / failure states / …), so the main window no longer needs to be visible just to learn what happened to a take. Keep the main window visible for any test that asserts toast content — failure toasts still carry the technical detail. If both are missed, the only evidence is `murmur.log`.
 
 ---
 
@@ -106,7 +106,7 @@ Preconditions for this whole section: onboarding complete, both permissions gran
 4. Release `Option+Space`.
    **Expected:** the panel stays open, the waveform is replaced by a spinner + "Transcribing…" label (no size jump). Tray icon switches to Transcribing.
 5. Wait for finalization (typically well under a second for streaming models).
-   **Expected:** the transcript is inserted into the focused text field at the caret, the overlay fades out (~300 ms), and the tray returns to Idle. The inserted text matches what you said (streamed text is finalized; minor tail corrections vs. the live preview are acceptable).
+   **Expected:** the transcript is inserted into the focused text field at the caret. Before the overlay fades, it shows an **"Inserted"** confirmation row (✓) for ~1.4 s, then fades out (~300 ms) and the tray returns to Idle. The inserted text matches what you said (streamed text is finalized; minor tail corrections vs. the live preview are acceptable).
 6. Check your clipboard (`Cmd+V` elsewhere).
    **Expected:** with default `clipboard_handling = dont_modify`, the clipboard contains whatever **text** it held before dictation (the transcript was written to the clipboard transiently for Cmd+V, then restored).
 7. Open the main window → History.
@@ -128,7 +128,7 @@ Preconditions for this whole section: onboarding complete, both permissions gran
 1. Switch the active model to a non-streaming one (e.g. a standard Whisper model) via Settings → Models or the tray model submenu.
    **Expected:** tray submenu shows the newly checked model.
 2. Hold `Option+Space`, speak a sentence, release.
-   **Expected:** only the compact pill (dot + waveform + X) appears while recording — **no live text ever** (Live style falls back to the pill for non-streaming models). On release, the pill switches to spinner + "Transcribing…", then the text is inserted and the overlay hides. Insertion result identical to TC-20 step 5.
+   **Expected:** only the compact pill (dot + waveform + X) appears while recording — **no live text ever** (Live style falls back to the pill for non-streaming models). On release, the pill switches to spinner + "Transcribing…", then the text is inserted and the pill shows the **"Inserted"** result row (✓, ~1.4 s) before the overlay hides. Insertion result identical to TC-20 step 5.
 
 ### TC-23 — Overlay style and position settings
 
@@ -198,7 +198,7 @@ Precondition: streaming model + Live overlay unless noted. In every cancellation
 
 1. In Terminal, enable **Terminal → Secure Keyboard Entry** (or focus a Safari password field).
 2. Dictate into it.
-   **Expected (documents current behavior):** the pipeline completes normally — overlay hides, tray idles — but **no text appears** in the secure field and **no error toast fires** (`paste()` returns Ok; delivery is unverifiable). The transcript **is** recoverable from History. Log claims "Text pasted successfully". This is a known gap, not a regression — fail this TC only if the app crashes, hangs, or corrupts the field.
+   **Expected (documents current behavior):** the pipeline completes normally — the overlay even shows the **"Inserted"** result row (the keystroke was dispatched; delivery remains unverifiable), then hides, tray idles — but **no text appears** in the secure field and **no error toast fires** (`paste()` returns Ok). The transcript **is** recoverable from History. Log claims a successful paste (`Paste finished (Pasted) …`). This is a known gap, not a regression — fail this TC only if the app crashes, hangs, or corrupts the field.
 3. Disable Secure Keyboard Entry and dictate again.
    **Expected:** insertion works normally.
 
@@ -220,14 +220,14 @@ Precondition: streaming model + Live overlay unless noted. In every cancellation
 
 1. Settings → Advanced/Output: set Paste Method = `None` and Clipboard Handling = `copy_to_clipboard`.
 2. Dictate.
-   **Expected:** no keystroke is sent to any app (nothing auto-inserted); the transcript **is on the clipboard** — `Cmd+V` manually pastes it. Overlay/tray behave normally.
-3. Quirk check: this path still requires Enigo — with accessibility never granted it fails with a paste-error toast even though no keys would be synthesized (known quirk).
+   **Expected:** no keystroke is sent to any app (nothing auto-inserted); the transcript **is on the clipboard** — `Cmd+V` manually pastes it. The overlay shows a **"Copied to clipboard"** result row (~1.8 s) before hiding; tray behaves normally.
+3. Quirk check: this path still requires Enigo — with accessibility never granted it fails even though no keys would be synthesized (known quirk). This now surfaces as a **"Couldn't paste — transcript kept"** failure row in the overlay (with a Copy recovery button) plus a paste-error toast carrying the technical detail, rather than only a generic toast.
 4. Restore Paste Method `ctrl_v`, Clipboard Handling `dont_modify`.
 
 ### TC-44 — Empty transcript (silence)
 
 1. With VAD enabled (default), hold `Option+Space` for ~3 s in **silence**, release.
-   **Expected (documents current behavior):** overlay hides, tray idles, **nothing is inserted, no toast** — the empty-result path is deliberately silent. Depending on whether VAD filtered all frames, History shows either no new entry or an entry with an empty/failed transcript. No crash, and the next dictation works normally.
+   **Expected:** this path is **no longer silent** — the overlay shows a **"No speech detected"** result row for ~1.8 s before hiding (or an **"Empty transcript"** row if some frames survived VAD but the model produced nothing). Tray idles, **nothing is inserted, no toast** in the main window. Depending on whether VAD filtered all frames, History shows either no new entry or an entry with an empty/failed transcript. No crash, and the next dictation works normally.
 
 ---
 
@@ -238,7 +238,7 @@ Precondition: streaming model + Live overlay unless noted. In every cancellation
 1. Settings → Models: delete all downloaded models (or tray → Unload + delete). Keep the main window visible.
    **Expected:** models list shows nothing downloaded; tray model submenu is empty/unchecked.
 2. Dictate (hold `Option+Space`, speak, release).
-   **Expected:** recording itself starts and the overlay appears (model load happens in the background and its failure does not block recording). At release, transcription fails and a **transcription-error toast** appears in the main window (message includes "Model is not loaded for transcription."). Overlay hides, tray idles.
+   **Expected:** recording itself starts and the overlay appears (model load happens in the background and its failure does not block recording). At release, transcription fails: the overlay shows a **"Transcription failed"** result row (held ~8 s, dismissible early via its X button) and a **transcription-error toast** appears in the main window (message includes "Model is not loaded for transcription."). Tray idles.
 3. Check History.
    **Expected:** an entry exists with a failed/empty transcript and playable audio — the take is recoverable via Retry after re-downloading a model (see TC-63).
 
@@ -255,8 +255,10 @@ Precondition: streaming model + Live overlay unless noted. In every cancellation
    Practical variant: complete onboarding normally, quit, revoke accessibility in System Settings, relaunch.
    **Expected:** onboarding/permission banner appears (TC-14). Global shortcuts may be dead (the event tap needs accessibility) — if `Option+Space` does nothing, that is the expected upstream symptom; trigger recording via `--toggle-transcription` instead.
 2. Dictate via `Murmur --toggle-transcription` (twice) with the main window visible.
-   **Expected:** recording and transcription succeed, but insertion fails: **paste-error toast** ("paste failed", generic) in the main window. Transcript is recoverable from History; detail is in `murmur.log`.
-3. Known limitation: if accessibility is revoked **while the app is running** (Enigo already initialized), paste reports success and text silently goes nowhere — no toast. Note, don't fail.
+   **Expected:** recording and transcription succeed, but insertion fails: the overlay shows a **"Couldn't paste — transcript kept"** result row (held ~8 s, dismissible via its X) with a **Copy** button, and a **paste-error toast** fires in the main window — its description now includes the technical detail (also in `murmur.log`). Transcript is recoverable from History.
+3. Click **Copy** on the overlay result row.
+   **Expected:** the button flips to **"Copied"**; `Cmd+V` in any text field yields the transcript.
+4. Known limitation: if accessibility is revoked **while the app is running** (Enigo already initialized), paste reports success ("Inserted" row) and text silently goes nowhere — no failure feedback. Note, don't fail.
 
 ---
 
@@ -344,4 +346,4 @@ Murmur --transcribe-file /tmp/qa-bad.wav --model <model-id>; echo "exit=$?"
 
 ## Appendix: quick regression pass order
 
-For a fast smoke of a new build: TC-20 (golden path) → TC-30 (Esc cancel) → TC-42.1 (clipboard restore) → TC-60 (history) → TC-71 (headless). Full pass order as numbered above; run section 1 last if you want to avoid re-granting permissions mid-session.
+For a fast smoke of a new build: TC-20 (golden path; "Inserted" result row appears) → TC-30 (Esc cancel) → TC-42.1 (clipboard restore) → TC-60 (history) → TC-71 (headless). Full pass order as numbered above; run section 1 last if you want to avoid re-granting permissions mid-session.

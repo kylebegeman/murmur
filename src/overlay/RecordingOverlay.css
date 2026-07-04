@@ -30,6 +30,8 @@
   --ov-pill-w: 184px; /* base width / Live pill before it opens or collapses */
   --ov-work-w: 216px; /* working pill (transcribing / polishing) -- wide enough to
                          center longer labels; shared by Live (collapsed) + minimal */
+  --ov-result-w: 244px; /* result pill (inserted / failed + Copy) -- must stay under
+                           overlay.rs OVERLAY_WIDTH (256) */
   --ov-open-w: 392px; /* Live panel, expanded */
   --ov-base-h: 40px; /* control-row height (.sbase) */
   --ov-cap-max-h: 64px; /* max height of the scrolling live-text region */
@@ -172,6 +174,17 @@
 }
 .scard.compact.cworking {
   width: var(--ov-work-w);
+}
+/* Result rows can carry a label + Copy button; give them the full window
+   width headroom (overlay.rs OVERLAY_WIDTH is 256). Applies to the minimal
+   pill and the Live collapsed pill; the open Live panel keeps --ov-open-w.
+   The compact result card also carries `cworking`, so the compact override
+   below must match its specificity (0,3,0) and come later to win the width. */
+.scard.cresult {
+  width: var(--ov-result-w);
+}
+.scard.compact.cresult {
+  width: var(--ov-result-w);
 }
 
 /* text region — auto-height open via grid-rows trick; region fades as a whole */
@@ -366,4 +379,59 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* result state (inserted / copied / failed / …) — status icon + label + recovery */
+.sicon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.sicon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+.sicon.ok {
+  color: var(--s-accent);
+}
+.sicon.warn {
+  color: var(--s-muted);
+}
+.sicon.err {
+  color: #d4574e;
+}
+.sresult-label {
+  color: var(--color-text);
+}
+.scopy {
+  flex: none;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 999px;
+  -webkit-appearance: none;
+  appearance: none;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-text);
+  background: var(--s-hair);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    transform 100ms ease;
+}
+.scopy:hover:not(:disabled) {
+  background: var(--s-accent-soft);
+  transform: scale(1.04);
+}
+.scopy:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.scopy:disabled {
+  cursor: default;
+  color: var(--s-muted);
 }

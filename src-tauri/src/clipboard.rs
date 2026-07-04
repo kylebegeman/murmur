@@ -12,6 +12,23 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 #[cfg(target_os = "linux")]
 use crate::utils::{is_kde_wayland, is_wayland};
 
+/// Writes text to the system clipboard, preferring `wl-copy` on Wayland (better
+/// compatibility, notably with umlauts). This is the single clipboard-write path
+/// shared by the paste pipeline and the overlay's "copy transcript" recovery
+/// action, so both behave identically on every display server.
+pub fn write_text_to_clipboard(app_handle: &AppHandle, text: &str) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    if is_wayland() && is_wl_copy_available() {
+        info!("Using wl-copy for clipboard write on Wayland");
+        return write_clipboard_via_wl_copy(text);
+    }
+
+    app_handle
+        .clipboard()
+        .write_text(text.to_string())
+        .map_err(|e| format!("Failed to write to clipboard: {}", e))
+}
+
 /// Pastes text using the clipboard: saves current content, writes text, sends paste keystroke, restores clipboard.
 fn paste_via_clipboard(
     enigo: &mut Enigo,
@@ -588,7 +605,22 @@ fn should_send_auto_submit(auto_submit: bool, paste_method: PasteMethod) -> bool
     auto_submit && paste_method != PasteMethod::None
 }
 
-pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
+/// What actually happened to the transcript from the user's point of view.
+/// `paste()` reports this so the pipeline can tell the user the truth instead
+/// of collapsing every configuration into a silent success.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PasteDelivery {
+    /// A paste/typing action was dispatched at the focused app.
+    Pasted,
+    /// No paste was configured (`PasteMethod::None`) but the transcript was
+    /// left on the clipboard (`ClipboardHandling::CopyToClipboard`).
+    ClipboardOnly,
+    /// No paste was configured and the clipboard was left untouched; the
+    /// transcript exists only in history.
+    NotDelivered,
+}
+
+pub fn paste(text: String, app_handle: AppHandle) -> Result<PasteDelivery, String> {
     let settings = get_settings(&app_handle);
     let paste_method = settings.paste_method;
     let paste_delay_ms = settings.paste_delay_ms;
@@ -646,20 +678,38 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
         }
     }
 
+    // At this point the paste itself (if any) has been dispatched. The steps
+    // below are follow-ups: a failure here must NOT be reported as "paste
+    // failed" for a paste method that already delivered the text — that would
+    // tell the user their words were lost when they weren't. Auto-submit only
+    // runs for real paste methods (`should_send_auto_submit` excludes `None`),
+    // so a failure there is always post-delivery and is logged, not fatal.
     if should_send_auto_submit(settings.auto_submit, paste_method) {
         std::thread::sleep(Duration::from_millis(50));
-        send_return_key(&mut enigo, settings.auto_submit_key)?;
+        if let Err(e) = send_return_key(&mut enigo, settings.auto_submit_key) {
+            log::warn!("Auto-submit failed after paste (text was still delivered): {e}");
+        }
     }
 
-    // After pasting, optionally copy to clipboard based on settings
+    // After pasting, optionally copy to clipboard based on settings. For a real
+    // paste method this is a supplementary convenience, so a failure is logged
+    // rather than treated as a lost paste. For `PasteMethod::None` this write
+    // *is* the delivery mechanism, so its failure is a genuine failure.
     if settings.clipboard_handling == ClipboardHandling::CopyToClipboard {
         let clipboard = app_handle.clipboard();
-        clipboard
-            .write_text(&text)
-            .map_err(|e| format!("Failed to copy to clipboard: {}", e))?;
+        if let Err(e) = clipboard.write_text(&text) {
+            if paste_method == PasteMethod::None {
+                return Err(format!("Failed to copy to clipboard: {}", e));
+            }
+            log::warn!("Copy-to-clipboard failed after paste (text was still delivered): {e}");
+        }
     }
 
-    Ok(())
+    Ok(match (paste_method, settings.clipboard_handling) {
+        (PasteMethod::None, ClipboardHandling::CopyToClipboard) => PasteDelivery::ClipboardOnly,
+        (PasteMethod::None, ClipboardHandling::DontModify) => PasteDelivery::NotDelivered,
+        _ => PasteDelivery::Pasted,
+    })
 }
 
 #[cfg(test)]

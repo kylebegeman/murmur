@@ -589,6 +589,7 @@ pub fn run(cli_args: CliArgs) {
             trigger_update_check,
             show_main_window_command,
             commands::cancel_operation,
+            commands::copy_transcript,
             commands::is_portable,
             commands::get_app_dir_path,
             commands::get_app_settings,
@@ -642,6 +643,7 @@ pub fn run(cli_args: CliArgs) {
             managers::history::HistoryUpdatePayload,
             managers::transcription::StreamTextEvent,
             managers::transcription::StreamPhaseEvent,
+            actions::DictationResultEvent,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds

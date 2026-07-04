@@ -14,6 +14,18 @@ pub fn cancel_operation(app: AppHandle) {
     cancel_current_operation(&app);
 }
 
+/// Copy arbitrary transcript text to the system clipboard. Used by the
+/// overlay's recovery action after a failed paste — the overlay webview has
+/// no clipboard-manager capability, so the write happens here in Rust.
+/// Routes through the shared, Wayland-aware clipboard writer so the recovery
+/// path (which skews toward Linux, where paste is most fragile) behaves like
+/// the paste pipeline.
+#[tauri::command]
+#[specta::specta]
+pub fn copy_transcript(app: AppHandle, text: String) -> Result<(), String> {
+    crate::clipboard::write_text_to_clipboard(&app, &text)
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn is_portable() -> bool {

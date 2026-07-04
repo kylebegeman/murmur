@@ -15,37 +15,42 @@ stage of the dictation pipeline and the stage most exposed to OS-level fragility
 
 ## Key Files
 
-| File                                                    | Role                                                                                                                                                                                              |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src-tauri/src/clipboard.rs`                            | The whole insertion engine: `paste()` entry point, clipboard save/write/restore, paste-keystroke dispatch, direct typing, external script execution, auto-submit, Linux tool detection/execution. |
-| `src-tauri/src/input.rs`                                | Low-level enigo wrappers: `EnigoState` managed state, layout-independent paste key combos, `paste_text_direct` (enigo `.text()`), `get_cursor_position` (used by overlay, not insertion).         |
-| `src-tauri/src/utils.rs`                                | Facade module; `pub use crate::clipboard::*;` so callers use `utils::paste(...)`.                                                                                                                 |
-| `src-tauri/src/actions.rs`                              | The only production caller of `paste()` (line ~764, inside the transcription-finished handler). Emits the `paste-error` event on failure.                                                         |
-| `src-tauri/src/shortcut/mod.rs`                         | Tauri commands that mutate insertion-related settings (`change_paste_method_setting`, `change_typing_tool_setting`, `change_auto_submit_setting`, etc.) and `get_available_typing_tools`.         |
-| `src-tauri/src/commands/mod.rs`                         | `initialize_enigo` command: lazily creates `EnigoState` after macOS accessibility is granted.                                                                                                     |
-| `src-tauri/src/settings.rs`                             | Setting enums (`PasteMethod`, `ClipboardHandling`, `AutoSubmitKey`, `TypingTool`) and defaults.                                                                                                   |
-| `src/components/settings/PasteMethod.tsx`               | UI dropdown for `paste_method` + external script path input.                                                                                                                                      |
-| `src/components/settings/TypingTool.tsx`                | UI dropdown for `typing_tool` (Linux only, only when `paste_method == "direct"`).                                                                                                                 |
-| `src/components/settings/AutoSubmit.tsx`                | UI dropdown combining `auto_submit` (bool) and `auto_submit_key` (enum) into one Off/Enter/Ctrl+Enter/Cmd+Enter selector.                                                                         |
-| `src/components/settings/ClipboardHandling.tsx`         | UI dropdown for `clipboard_handling`.                                                                                                                                                             |
-| `src/components/settings/AppendTrailingSpace.tsx`       | Toggle for `append_trailing_space` (applied inside `paste()`, listed under the "transcription" settings group).                                                                                   |
-| `src/components/settings/debug/PasteDelay.tsx`          | Debug-only slider for `paste_delay_ms` (default 60).                                                                                                                                              |
-| `src/components/settings/advanced/AdvancedSettings.tsx` | Composes the "Output" settings group (PasteMethod, TypingTool, ClipboardHandling, AutoSubmit).                                                                                                    |
-| `src/stores/settingsStore.ts`                           | Maps each settings key to its specific `change_*_setting` Tauri command (optimistic update + revert on failure).                                                                                  |
-| `src/App.tsx`                                           | Listens for the `paste-error` event and shows a toast; triggers `initialize_enigo` after onboarding.                                                                                              |
-| `src/components/onboarding/AccessibilityOnboarding.tsx` | macOS/Windows permission onboarding; calls `initialize_enigo` + `initialize_shortcuts` once accessibility is granted.                                                                             |
-| `src/components/AccessibilityPermissions.tsx`           | Persistent banner in the main window when macOS accessibility is missing.                                                                                                                         |
+| File                                                    | Role                                                                                                                                                                                                                                          |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src-tauri/src/clipboard.rs`                            | The whole insertion engine: `paste()` entry point, clipboard save/write/restore, paste-keystroke dispatch, direct typing, external script execution, auto-submit, Linux tool detection/execution.                                             |
+| `src-tauri/src/input.rs`                                | Low-level enigo wrappers: `EnigoState` managed state, layout-independent paste key combos, `paste_text_direct` (enigo `.text()`), `get_cursor_position` (used by overlay, not insertion).                                                     |
+| `src-tauri/src/utils.rs`                                | Facade module; `pub use crate::clipboard::*;` so callers use `utils::paste(...)`.                                                                                                                                                             |
+| `src-tauri/src/actions.rs`                              | The only production caller of `paste()` (inside the transcription-finished handler). Emits `paste-error` (String detail) on failure and a `dictation-result-event` at every non-cancelled terminal path (via `overlay::show_result_overlay`). |
+| `src-tauri/src/shortcut/mod.rs`                         | Tauri commands that mutate insertion-related settings (`change_paste_method_setting`, `change_typing_tool_setting`, `change_auto_submit_setting`, etc.) and `get_available_typing_tools`.                                                     |
+| `src-tauri/src/commands/mod.rs`                         | `initialize_enigo` command: lazily creates `EnigoState` after macOS accessibility is granted.                                                                                                                                                 |
+| `src-tauri/src/settings.rs`                             | Setting enums (`PasteMethod`, `ClipboardHandling`, `AutoSubmitKey`, `TypingTool`) and defaults.                                                                                                                                               |
+| `src/components/settings/PasteMethod.tsx`               | UI dropdown for `paste_method` + external script path input.                                                                                                                                                                                  |
+| `src/components/settings/TypingTool.tsx`                | UI dropdown for `typing_tool` (Linux only, only when `paste_method == "direct"`).                                                                                                                                                             |
+| `src/components/settings/AutoSubmit.tsx`                | UI dropdown combining `auto_submit` (bool) and `auto_submit_key` (enum) into one Off/Enter/Ctrl+Enter/Cmd+Enter selector.                                                                                                                     |
+| `src/components/settings/ClipboardHandling.tsx`         | UI dropdown for `clipboard_handling`.                                                                                                                                                                                                         |
+| `src/components/settings/AppendTrailingSpace.tsx`       | Toggle for `append_trailing_space` (applied inside `paste()`, listed under the "transcription" settings group).                                                                                                                               |
+| `src/components/settings/debug/PasteDelay.tsx`          | Debug-only slider for `paste_delay_ms` (default 60).                                                                                                                                                                                          |
+| `src/components/settings/advanced/AdvancedSettings.tsx` | Composes the "Output" settings group (PasteMethod, TypingTool, ClipboardHandling, AutoSubmit).                                                                                                                                                |
+| `src/stores/settingsStore.ts`                           | Maps each settings key to its specific `change_*_setting` Tauri command (optimistic update + revert on failure).                                                                                                                              |
+| `src/App.tsx`                                           | Listens for the `paste-error` event and shows a toast; triggers `initialize_enigo` after onboarding.                                                                                                                                          |
+| `src/components/onboarding/AccessibilityOnboarding.tsx` | macOS/Windows permission onboarding; calls `initialize_enigo` + `initialize_shortcuts` once accessibility is granted.                                                                                                                         |
+| `src/components/AccessibilityPermissions.tsx`           | Persistent banner in the main window when macOS accessibility is missing.                                                                                                                                                                     |
 
 ## Key Functions, Structs, Components
 
 ### Rust
 
 - `src-tauri/src/clipboard.rs (paste)` — public entry point. Signature:
-  `pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String>`.
+  `pub fn paste(text: String, app_handle: AppHandle) -> Result<PasteDelivery, String>`.
   Reads settings, optionally appends a trailing space, locks the managed `EnigoState`,
   dispatches on `PasteMethod`, then optionally auto-submits and optionally copies to
   clipboard. Every sub-step returns `Result<(), String>`; the first failure aborts the
-  rest of the function.
+  rest of the function. On success it reports what actually happened as a
+  `PasteDelivery`: `Pasted` (a paste/typing action was dispatched at the focused app),
+  `ClipboardOnly` (`PasteMethod::None` + `ClipboardHandling::CopyToClipboard` — no
+  keystroke, but the transcript was left on the clipboard), or `NotDelivered`
+  (`PasteMethod::None` + `DontModify` — clipboard untouched; the transcript exists
+  only in history).
 - `src-tauri/src/clipboard.rs (paste_via_clipboard)` — clipboard strategy:
   1. `clipboard.read_text().unwrap_or_default()` saves current clipboard **text**
      (non-text content becomes an empty string).
@@ -96,13 +101,18 @@ stage of the dictation pipeline and the stage most exposed to OS-level fragility
   setup** — see the comment in `src-tauri/src/lib.rs (initialize_core_logic)`: the
   frontend must call `initialize_enigo` after onboarding to avoid premature macOS
   permission dialogs.
-- `src-tauri/src/actions.rs` (transcription-finished handler, ~line 748–782) — the call
+- `src-tauri/src/actions.rs` (transcription-finished handler) — the call
   site. If `processed.final_text` is non-empty, it schedules
   `utils::paste(final_text, ah_clone)` **on the main thread** via
   `ah.run_on_main_thread`, re-checking cancellation first. On `Err`, logs
-  `error!("Failed to paste transcription: {}", e)` and emits `paste-error` (unit
-  payload). On `Ok`, only a `debug!` log. Then hides the recording overlay and resets
-  the tray icon either way.
+  `error!("Failed to paste transcription: {}", e)`, emits `paste-error` (String
+  detail), and shows a `paste_failed` result (detail + transcript). On
+  `Ok(delivery)`, maps the `PasteDelivery` to a `dictation-result-event` outcome
+  (`Pasted` → `inserted`, `ClipboardOnly` → `copied`, `NotDelivered` →
+  `not_delivered`, transcript attached) shown via `overlay::show_result_overlay`,
+  which also schedules the overlay hide after an outcome-dependent hold. If
+  `run_on_main_thread` itself fails, the fallback emits the same `paste-error` +
+  `paste_failed` result (with the transcript). The tray icon resets either way.
 
 ### Frontend
 
@@ -127,8 +137,9 @@ stage of the dictation pipeline and the stage most exposed to OS-level fragility
   — it never calls `refreshSettings()` (that only happens in other flows such as
   `resetBinding` and `setPostProcessProvider`, which the insertion settings keys
   don't use).
-- `src/App.tsx` — `listen("paste-error", ...)` -> `toast.error(t("errors.pasteFailedTitle"), { description: t("errors.pasteFailed") })`.
-  Deliberately generic: the comment notes the technical detail lives in `murmur.log`.
+- `src/App.tsx` — `listen<string>("paste-error", ...)` -> `toast.error(t("errors.pasteFailedTitle"), { description: event.payload || t("errors.pasteFailed") })`.
+  The toast description now shows the technical detail carried in the payload (also
+  logged to `murmur.log`), falling back to the generic localized message when empty.
 
 ## Runtime Flow (happy path, macOS defaults)
 
@@ -156,10 +167,15 @@ stage of the dictation pipeline and the stage most exposed to OS-level fragility
       `auto_submit_key` (Enter / Ctrl+Enter / Cmd+Enter).
    6. If `clipboard_handling == CopyToClipboard`: write the (possibly space-suffixed)
       transcript back to the clipboard, overwriting the restore from step 4.
-4. Back in `actions.rs`: `Ok` -> debug log only. `Err` -> `error!` log +
-   `app.emit("paste-error", ())`.
-5. `src/App.tsx` shows the "paste failed" toast (only visible if the main settings
-   window is visible). Overlay hidden and tray icon reset regardless of outcome.
+4. Back in `actions.rs`: `Ok(delivery)` -> debug log + a `dictation-result-event`
+   (`inserted` on this happy path) shown in the overlay via
+   `overlay::show_result_overlay`. `Err` -> `error!` log +
+   `app.emit("paste-error", detail)` + a `paste_failed` result event carrying the
+   detail and the transcript.
+5. `src/App.tsx` shows the "paste failed" toast with the detail as its description
+   (only visible if the main settings window is visible); the overlay shows the result
+   row regardless. The overlay hides after an outcome-dependent hold and the tray icon
+   resets regardless of outcome.
 
 ## Tauri Commands and Events
 
@@ -185,13 +201,15 @@ They never fail in practice (always `Ok(())`).
 
 ### Rust -> frontend events
 
-| Event         | Emitted from                                                             | Payload                | Consumer                                                                                                                 |
-| ------------- | ------------------------------------------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `paste-error` | `src-tauri/src/actions.rs` (`let _ = ah_clone.emit("paste-error", ());`) | `()` (null; no detail) | `src/App.tsx` -> generic sonner toast (`errors.pasteFailedTitle` / `errors.pasteFailed`). Emit result itself is ignored. |
+| Event                    | Emitted from                                                                                                                     | Payload                                                                                                                                                       | Consumer                                                                                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `paste-error`            | `src-tauri/src/actions.rs` (`let _ = ah_clone.emit("paste-error", e.clone());`)                                                  | `string` (error detail)                                                                                                                                       | `src/App.tsx` -> sonner toast (`errors.pasteFailedTitle`) with the detail as description (generic `errors.pasteFailed` fallback). Emit result itself is ignored. |
+| `dictation-result-event` | `src-tauri/src/actions.rs` terminal paths of `TranscribeAction::stop`, via `overlay.rs (show_result_overlay)` (specta broadcast) | `{ outcome, detail?, transcript? }` — outcome: `inserted \| copied \| not_delivered \| no_speech \| empty_transcript \| transcription_failed \| paste_failed` | `src/overlay/RecordingOverlay.tsx` -> result row (status icon + label + Copy recovery button + dismiss on failures).                                             |
 
-That is the **only** event this subsystem emits. There is no success event, no
-"inserted N chars" event, and no per-strategy detail. (`transcription-error` and
-`recording-error` are adjacent pipeline events, not part of insertion.)
+`dictation-result-event` is the subsystem's outcome event: it fires exactly once at
+every **non-cancelled** terminal path — success included, so there is no longer a
+silent success. Cancellation paths deliberately emit nothing. (`transcription-error`
+and `recording-error` are adjacent pipeline events, not part of insertion.)
 
 ## Settings Keys
 
@@ -250,16 +268,22 @@ All live in the single `AppSettings` struct (`src-tauri/src/settings.rs`), persi
 
 ## Fragile Points and Failure Modes
 
-1. **Silent success is unverifiable.** `paste()` returns `Ok` as soon as the synthetic
-   keystroke/typing calls succeed. Nothing confirms the frontmost app actually received
-   the text (wrong focus, no text field, secure input fields, sandboxed apps that block
-   synthetic events). The user gets zero feedback in this case: the overlay hides, the
-   tray goes idle, and the debug log claims "Text pasted successfully". This is the
-   main gap Murmur's insertion-result feedback must address.
-2. **`paste-error` feedback only reaches a visible main window.** The toast lives in the
-   settings window's webview (`src/App.tsx`). Handy is a tray app; if the window is
-   hidden or closed during dictation (the normal case), the toast is never seen. The
-   emit is also `let _ =`-ignored. Detail exists only in `murmur.log`.
+1. **Success is still unverifiable.** `paste()` returns `Ok(Pasted)` as soon as the
+   synthetic keystroke/typing calls succeed. Nothing confirms the frontmost app actually
+   received the text (wrong focus, no text field, secure input fields, sandboxed apps
+   that block synthetic events). The user now at least sees that a paste was
+   **dispatched** (the overlay's "Inserted" result row), but a dispatched-yet-dropped
+   paste still reports success — delivery verification remains the open gap.
+2. **RESOLVED — feedback no longer requires a visible main window.** Every non-cancelled
+   terminal path now emits `dictation-result-event`, rendered as a result row in the
+   overlay (with a Copy recovery button on paste failures), and the `paste-error` toast
+   carries the technical detail in its payload. (Historical behavior: the only feedback
+   was a generic toast in the settings window's webview — hidden window meant no
+   feedback at all, detail in `murmur.log` only.) With `overlay_style = None` there is no
+   visible overlay, but `dictation-result-event` is **still emitted** (any window can
+   listen), so the outcome is never silently dropped; only the visible result row is
+   absent there. The event is suppressed only when a newer take has already taken over
+   the overlay (its `expected_session` no longer matches), since that result is stale.
 3. **Non-text clipboard content is destroyed.** `paste_via_clipboard` saves the old
    clipboard with `read_text().unwrap_or_default()`. Images, files, or rich content
    read as `""`, and the "restore" then overwrites the user's clipboard with an empty
@@ -291,33 +315,43 @@ All live in the single `AppSettings` struct (`src-tauri/src/settings.rs`), persi
     stdout) is good, but surfaces only as the generic toast + log.
 11. **Enigo mutex poisoning.** A panic while holding the `EnigoState` lock would make
     every later paste fail with "Failed to lock Enigo".
-12. **`run_on_main_thread` failure path skips the error event.** In `actions.rs`, if
-    scheduling on the main thread fails, the closure never runs: it logs an error and
-    resets UI, but no `paste-error` is emitted, so the text silently vanishes (it may
-    still be recoverable from history).
+12. **RESOLVED — `run_on_main_thread` failure now reports.** In `actions.rs`, if
+    scheduling on the main thread fails, the fallback emits `paste-error` (with a
+    "Could not dispatch paste to main thread" detail) and a `paste_failed`
+    `dictation-result-event` carrying the transcript, so the text is no longer a
+    silent loss. (Historical behavior: only an error log and a UI reset; no event.)
 13. **Linux tool probing per paste.** `which` subprocesses on every insertion; a PATH
     change mid-session changes behavior silently (logged at info level only).
 14. **History "copy" is a separate, weaker path.** `src/components/settings/history/HistorySettings.tsx (copyToClipboard)`
     uses `navigator.clipboard.writeText` with errors only `console.error`ed; it does not
     reuse this subsystem.
 
-## Existing User Feedback Summary (for Murmur insertion-result work)
+## User Feedback (current)
 
-- Success: nothing user-visible (debug log line only; overlay hides, tray resets).
+Every non-cancelled take now ends in an explicit `dictation-result-event`:
+
+- Success: the overlay shows an "Inserted" result row (~1.4 s) — or "Copied to
+  clipboard" / "Not inserted — paste is off" for the `PasteMethod::None`
+  configurations (the latter offers a Copy recovery button rather than claiming
+  a history save that may not have happened) — then hides.
 - Mechanical failure (enigo error, clipboard write error, script non-zero exit, missing
-  script path, Enigo not initialized): `paste-error` event -> generic toast in the main
-  window, full detail in `murmur.log` only.
+  script path, Enigo not initialized, main-thread dispatch failure): a failure result
+  row in the overlay ("Couldn't paste — transcript kept", held ~8 s, dismissible) with
+  a Copy recovery button, plus a `paste-error` toast whose description carries the
+  technical detail (also in `murmur.log`).
 - Logical failure (text never landed in the target app, clipboard image lost, restore
-  race): reported as success. The transcript is recoverable from history, and from the
-  clipboard only if `clipboard_handling = copy_to_clipboard`.
+  race): still reported as success — these are the remaining gaps. The transcript is
+  recoverable from history, from the overlay's Copy button only on failure rows, and
+  from the clipboard only if `clipboard_handling = copy_to_clipboard`.
 
 ## Cross-Links to Other Subsystems
 
 - **Transcription pipeline** (`src-tauri/src/actions.rs`): produces `final_text`,
   handles cancellation checks around the paste, saves history entries before pasting.
-- **Overlay/tray** (`src-tauri/src/overlay.rs`, `tray.rs` via `utils::hide_recording_overlay`,
-  `change_tray_icon`): visual state reset after paste; `input::get_cursor_position` is
-  consumed by overlay positioning.
+- **Overlay/tray** (`src-tauri/src/overlay.rs`, `tray.rs` via `utils::show_result_overlay` /
+  `utils::hide_recording_overlay`, `change_tray_icon`): result-row display and visual
+  state reset after paste; `input::get_cursor_position` is consumed by overlay
+  positioning.
 - **Settings subsystem** (`src-tauri/src/settings.rs` `get_settings`/`write_settings`,
   `src/stores/settingsStore.ts`): all knobs above.
 - **Permissions/onboarding** (`tauri-plugin-macos-permissions-api`,

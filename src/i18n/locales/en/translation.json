@@ -615,6 +615,16 @@
   },
   "overlay": {
     "transcribing": "Transcribing...",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "result": {
+      "inserted": "Inserted",
+      "copied": "Copied to clipboard",
+      "notDelivered": "Not inserted — paste is off",
+      "noSpeech": "No speech detected",
+      "emptyTranscript": "Empty transcript",
+      "transcriptionFailed": "Transcription failed",
+      "pasteFailed": "Couldn't paste — transcript kept",
+      "copiedConfirm": "Copied"
+    }
   }
 }
