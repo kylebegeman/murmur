@@ -10,19 +10,19 @@ One native window (label `recording_overlay`) is created hidden at app boot and 
 
 ## Key files
 
-| File | Role |
-|---|---|
-| `src-tauri/src/overlay.rs` | All native window logic: creation (per platform), sizing, positioning, show/hide, `mic-level` emission with enabled-cache guard. Re-exported through `src-tauri/src/utils.rs` (`pub use crate::overlay::*`). |
-| `src/overlay/index.html` | Dedicated Vite entry (registered in `vite.config.ts` under `input.overlay`). Transparent `html/body`, `#root`, loads `main.tsx`. |
-| `src/overlay/main.tsx` | React root; renders `<RecordingOverlay />` in StrictMode; imports `@/i18n` (which eagerly calls `syncLanguageFromSettings()` at module load). |
-| `src/overlay/RecordingOverlay.tsx` | The single component implementing all overlay forms and all event listeners. |
-| `src/overlay/RecordingOverlay.css` | All visual styling; owns the card geometry variables (`--ov-*`) that the native window sizes in `overlay.rs` must stay in sync with. |
-| `src-tauri/src/actions.rs` | (Other subsystem: shortcut actions.) Chooses which overlay to show on record start/stop and hides it on every terminal path. |
-| `src-tauri/src/managers/transcription.rs` | (Other subsystem: transcription.) Defines and emits `StreamTextEvent` / `StreamPhaseEvent`; streaming worker produces committed/tentative text. |
-| `src-tauri/src/managers/audio.rs` + `src-tauri/src/audio_toolkit/audio/recorder.rs` / `visualizer.rs` | (Other subsystem: audio.) Produce the 16-bucket FFT levels forwarded via `overlay.rs (emit_levels)`. |
-| `src-tauri/src/settings.rs` | `OverlayPosition`, `OverlayStyle` enums, defaults, and the legacy `overlay_position: "none"` → `overlay_style: "none"` migration. |
-| `src-tauri/src/shortcut/mod.rs` | Tauri commands `change_overlay_position_setting` / `change_overlay_style_setting` (invoked from the settings UI, `src/components/settings/ShowOverlay.tsx`). |
-| `src-tauri/src/lib.rs` | Startup wiring: creates the window, registers specta events, seeds the overlay-enabled cache. |
+| File                                                                                                  | Role                                                                                                                                                                                                         |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src-tauri/src/overlay.rs`                                                                            | All native window logic: creation (per platform), sizing, positioning, show/hide, `mic-level` emission with enabled-cache guard. Re-exported through `src-tauri/src/utils.rs` (`pub use crate::overlay::*`). |
+| `src/overlay/index.html`                                                                              | Dedicated Vite entry (registered in `vite.config.ts` under `input.overlay`). Transparent `html/body`, `#root`, loads `main.tsx`.                                                                             |
+| `src/overlay/main.tsx`                                                                                | React root; renders `<RecordingOverlay />` in StrictMode; imports `@/i18n` (which eagerly calls `syncLanguageFromSettings()` at module load).                                                                |
+| `src/overlay/RecordingOverlay.tsx`                                                                    | The single component implementing all overlay forms and all event listeners.                                                                                                                                 |
+| `src/overlay/RecordingOverlay.css`                                                                    | All visual styling; owns the card geometry variables (`--ov-*`) that the native window sizes in `overlay.rs` must stay in sync with.                                                                         |
+| `src-tauri/src/actions.rs`                                                                            | (Other subsystem: shortcut actions.) Chooses which overlay to show on record start/stop and hides it on every terminal path.                                                                                 |
+| `src-tauri/src/managers/transcription.rs`                                                             | (Other subsystem: transcription.) Defines and emits `StreamTextEvent` / `StreamPhaseEvent`; streaming worker produces committed/tentative text.                                                              |
+| `src-tauri/src/managers/audio.rs` + `src-tauri/src/audio_toolkit/audio/recorder.rs` / `visualizer.rs` | (Other subsystem: audio.) Produce the 16-bucket FFT levels forwarded via `overlay.rs (emit_levels)`.                                                                                                         |
+| `src-tauri/src/settings.rs`                                                                           | `OverlayPosition`, `OverlayStyle` enums, defaults, and the legacy `overlay_position: "none"` → `overlay_style: "none"` migration.                                                                            |
+| `src-tauri/src/shortcut/mod.rs`                                                                       | Tauri commands `change_overlay_position_setting` / `change_overlay_style_setting` (invoked from the settings UI, `src/components/settings/ShowOverlay.tsx`).                                                 |
+| `src-tauri/src/lib.rs`                                                                                | Startup wiring: creates the window, registers specta events, seeds the overlay-enabled cache.                                                                                                                |
 
 ## Key functions / structs / components
 
@@ -100,29 +100,29 @@ One native window (label `recording_overlay`) is created hidden at app boot and 
 
 ### Rust → frontend events (all received by the overlay webview)
 
-| Event name | Emitter | Target | Payload |
-|---|---|---|---|
-| `show-overlay` | `overlay.rs (show_overlay_state)` via `overlay_window.emit` | overlay window (broadcast semantics in Tauri 2, but only overlay listens) | string: `"recording" \| "streaming" \| "transcribing" \| "processing"` |
-| `hide-overlay` | `overlay.rs (hide_recording_overlay)` | overlay window | `()` (empty) |
-| `mic-level` | `overlay.rs (emit_levels)` via `app_handle.emit_to("recording_overlay", …)` | overlay window only | `number[]` — 16 FFT bucket levels (f32), ~24–30 Hz during recording |
-| `stream-text-event` | `transcription.rs (emit_stream_text)` (tauri_specta, broadcast) | all windows; overlay listens via `events.streamTextEvent.listen` | `{ committed: string, tentative: string }` |
-| `stream-phase-event` | `transcription.rs (emit_stream_working)` (tauri_specta, broadcast) | all windows; overlay listens via `events.streamPhaseEvent.listen` | `{ phase: "listening" \| "working", kind?: "transcribing" \| "polishing" }` (`kind` omitted when absent; Rust only ever emits `working`) |
+| Event name           | Emitter                                                                     | Target                                                                    | Payload                                                                                                                                  |
+| -------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `show-overlay`       | `overlay.rs (show_overlay_state)` via `overlay_window.emit`                 | overlay window (broadcast semantics in Tauri 2, but only overlay listens) | string: `"recording" \| "streaming" \| "transcribing" \| "processing"`                                                                   |
+| `hide-overlay`       | `overlay.rs (hide_recording_overlay)`                                       | overlay window                                                            | `()` (empty)                                                                                                                             |
+| `mic-level`          | `overlay.rs (emit_levels)` via `app_handle.emit_to("recording_overlay", …)` | overlay window only                                                       | `number[]` — 16 FFT bucket levels (f32), ~24–30 Hz during recording                                                                      |
+| `stream-text-event`  | `transcription.rs (emit_stream_text)` (tauri_specta, broadcast)             | all windows; overlay listens via `events.streamTextEvent.listen`          | `{ committed: string, tentative: string }`                                                                                               |
+| `stream-phase-event` | `transcription.rs (emit_stream_working)` (tauri_specta, broadcast)          | all windows; overlay listens via `events.streamPhaseEvent.listen`         | `{ phase: "listening" \| "working", kind?: "transcribing" \| "polishing" }` (`kind` omitted when absent; Rust only ever emits `working`) |
 
 Related but rendered by the main window, not the overlay (other subsystem): `recording-error` (`{ error_type, detail }`), `transcription-error` (string), `paste-error` (`()`), all emitted from `actions.rs`.
 
 ### Frontend → Rust commands used by the overlay webview
 
-| Command | Caller | Purpose |
-|---|---|---|
-| `cancel_operation` (`commands.cancelOperation()`) | cancel X button | `commands/mod.rs (cancel_operation)` → `utils.rs (cancel_current_operation)`: stops recording, cancels stream, hides overlay, resets tray. Returns nothing; fire-and-forget. |
-| `get_app_settings` (`commands.getAppSettings()`) | on every `show-overlay` (for `overlay_position`) and from `src/i18n/index.ts (syncLanguageFromSettings)` (for `app_language`) | `Result<AppSettings, string>`. |
+| Command                                           | Caller                                                                                                                        | Purpose                                                                                                                                                                      |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cancel_operation` (`commands.cancelOperation()`) | cancel X button                                                                                                               | `commands/mod.rs (cancel_operation)` → `utils.rs (cancel_current_operation)`: stops recording, cancels stream, hides overlay, resets tray. Returns nothing; fire-and-forget. |
+| `get_app_settings` (`commands.getAppSettings()`)  | on every `show-overlay` (for `overlay_position`) and from `src/i18n/index.ts (syncLanguageFromSettings)` (for `app_language`) | `Result<AppSettings, string>`.                                                                                                                                               |
 
 ### Settings-UI commands that drive the overlay (invoked from `src/components/settings/ShowOverlay.tsx` via the settings store, not from the overlay webview)
 
-| Command | Effect |
-|---|---|
-| `change_overlay_position_setting(position: String)` — `shortcut/mod.rs` | Parses `"top"`/`"bottom"` (legacy `"none"` folds to bottom, invalid → bottom + warn), writes settings, `update_overlay_position`. |
-| `change_overlay_style_setting(style: String)` — `shortcut/mod.rs` | Parses `"none" \| "minimal" \| "live"` (invalid → minimal + warn), writes settings, `update_overlay_enabled_cache`, `update_overlay_position`. |
+| Command                                                                 | Effect                                                                                                                                         |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `change_overlay_position_setting(position: String)` — `shortcut/mod.rs` | Parses `"top"`/`"bottom"` (legacy `"none"` folds to bottom, invalid → bottom + warn), writes settings, `update_overlay_position`.              |
+| `change_overlay_style_setting(style: String)` — `shortcut/mod.rs`       | Parses `"none" \| "minimal" \| "live"` (invalid → minimal + warn), writes settings, `update_overlay_enabled_cache`, `update_overlay_position`. |
 
 ## Settings keys
 
@@ -134,16 +134,19 @@ Related but rendered by the main window, not the overlay (other subsystem): `rec
 ## Platform-specific behavior
 
 ### macOS
+
 - The overlay is an **NSPanel**, not a regular window: `tauri_nspanel` `PanelBuilder` with `PanelLevel::Status`, non-activating borderless style mask, `can_become_key_window: false`, `is_floating_panel: true`. Collection behavior `can_join_all_spaces + full_screen_auxiliary` keeps it visible across Spaces and over full-screen apps without switching Spaces.
 - Offsets: top 46 pt (below menu bar/notch area), bottom 15 pt.
 - Positioning notes baked into `calculate_overlay_position`: avoid `work_area()` (wrong for negative monitor origins on macOS) and use `LogicalPosition` (physical coords are converted with the current monitor's scale factor, breaking cross-monitor moves). `enigo`'s cursor position is logical on macOS (`NSEvent::mouseLocation`), hence the divide-by-scale normalization in `get_monitor_with_cursor`.
 - Creation failure mode differs: if `calculate_overlay_position` returns `None` at boot (no cursor monitor and no primary monitor), the panel is **never created and nothing is logged** on macOS; build errors are logged at `error!`.
 
 ### Windows
+
 - Regular Tauri window plus `force_overlay_topmost`: raw Win32 `SetWindowPos(HWND_TOPMOST, …, SWP_NOACTIVATE)` on the UI thread after every show, because Tauri's `always_on_top` can be overridden by other topmost windows.
 - Offsets: top 4, bottom 40 (taskbar). `GetCursorPos` logical-vs-physical depends on the process DPI-awareness context — the divide-by-scale normalization is described as safe but is heuristic.
 
 ### Linux
+
 - `overlay_style` defaults to `none` (overlay hidden, `mic-level` suppressed) — chosen because of the WebKitGTK memory growth issue (#1279).
 - When shown: GTK Layer Shell (`Layer::Overlay`, `KeyboardMode::None`, exclusive zone 0) with Top/Bottom edge anchors updated from settings on each show (`update_gtk_layer_shell_anchors`); escape hatch env var `HANDY_NO_GTK_LAYER_SHELL`. Falls back to a regular window when layer shell is unsupported (e.g. GNOME Wayland), where `set_position` may not work. Monitor detection is allowed to fail on creation (anchors don't need coordinates).
 

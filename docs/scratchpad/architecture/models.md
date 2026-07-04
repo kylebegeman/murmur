@@ -19,17 +19,17 @@ labeling is fully described below.
 
 ## Key Files
 
-| File | Role |
-|---|---|
-| `src-tauri/src/managers/model.rs` | `ModelManager`: the in-memory registry (`HashMap<String, ModelInfo>`), legacy hardcoded model table, catalog seeding, local discovery (custom dir + shared HF cache), download/cancel/delete/resume, SHA-256 verify, tar.gz extraction, path resolution, auto-selection, language-intent resolution (`effective_language`). ~2700 lines, the heart of the subsystem. |
-| `src-tauri/src/managers/model_capabilities.rs` | Capability probing seam: `CapabilityProbe`, `Compatibility` verdicts, `CapabilityProber` trait + `GgufHeaderProber` (reads capabilities from a local GGUF header before/without loading). `KNOWN_ARCHES` whitelist of transcribe-cpp architectures. |
-| `src-tauri/src/managers/gguf_meta.rs` | Minimal dependency-free GGUF v2/v3 header parser (`parse_header`), never touches tensor data. Works on file prefixes so it can run on partial reads. Hardened against malformed input (`GgufError`, size caps). |
-| `src-tauri/src/catalog/mod.rs` | Bundled offline catalog loader: parses `catalog.json` (via `include_str!`) into `Vec<ModelDescriptor>` (`CATALOG` lazy static), plus `rank_of(model_id)` editorial ordering. |
-| `src-tauri/src/catalog/catalog.json` | Generated catalog data (65 models, `catalog_version: 1`), produced by `scripts/gen_catalog.py` from the `handy-computer` Hugging Face org. Compiled into the binary; zero network needed to show the full list. |
-| `src-tauri/src/commands/models.rs` | All model Tauri commands + `switch_active_model` (shared by the `set_active_model` command and the tray menu handler in `src-tauri/src/lib.rs`). |
-| `scripts/gen_catalog.py` | Catalog generator (HF card `transcribe_cpp` capability blocks + GGUF header probe + hand-written `CURATION` map for rank/recommended/descriptions). Not shipped; run manually, output committed. |
-| `src/stores/modelStore.ts` | Frontend Zustand store: calls every model command, listens to every model event, tracks download progress/speed/verify/extract state. |
-| `src/components/settings/models/ModelsSettings.tsx`, `src/components/onboarding/Onboarding.tsx` + `ModelCard.tsx`, `src/components/model-selector/*` | Frontend consumers. Both settings and onboarding hide legacy `Url`-sourced models that are not already downloaded (`isLegacyModel` / `isLegacySource`). |
+| File                                                                                                                                                 | Role                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src-tauri/src/managers/model.rs`                                                                                                                    | `ModelManager`: the in-memory registry (`HashMap<String, ModelInfo>`), legacy hardcoded model table, catalog seeding, local discovery (custom dir + shared HF cache), download/cancel/delete/resume, SHA-256 verify, tar.gz extraction, path resolution, auto-selection, language-intent resolution (`effective_language`). ~2700 lines, the heart of the subsystem. |
+| `src-tauri/src/managers/model_capabilities.rs`                                                                                                       | Capability probing seam: `CapabilityProbe`, `Compatibility` verdicts, `CapabilityProber` trait + `GgufHeaderProber` (reads capabilities from a local GGUF header before/without loading). `KNOWN_ARCHES` whitelist of transcribe-cpp architectures.                                                                                                                  |
+| `src-tauri/src/managers/gguf_meta.rs`                                                                                                                | Minimal dependency-free GGUF v2/v3 header parser (`parse_header`), never touches tensor data. Works on file prefixes so it can run on partial reads. Hardened against malformed input (`GgufError`, size caps).                                                                                                                                                      |
+| `src-tauri/src/catalog/mod.rs`                                                                                                                       | Bundled offline catalog loader: parses `catalog.json` (via `include_str!`) into `Vec<ModelDescriptor>` (`CATALOG` lazy static), plus `rank_of(model_id)` editorial ordering.                                                                                                                                                                                         |
+| `src-tauri/src/catalog/catalog.json`                                                                                                                 | Generated catalog data (65 models, `catalog_version: 1`), produced by `scripts/gen_catalog.py` from the `handy-computer` Hugging Face org. Compiled into the binary; zero network needed to show the full list.                                                                                                                                                      |
+| `src-tauri/src/commands/models.rs`                                                                                                                   | All model Tauri commands + `switch_active_model` (shared by the `set_active_model` command and the tray menu handler in `src-tauri/src/lib.rs`).                                                                                                                                                                                                                     |
+| `scripts/gen_catalog.py`                                                                                                                             | Catalog generator (HF card `transcribe_cpp` capability blocks + GGUF header probe + hand-written `CURATION` map for rank/recommended/descriptions). Not shipped; run manually, output committed.                                                                                                                                                                     |
+| `src/stores/modelStore.ts`                                                                                                                           | Frontend Zustand store: calls every model command, listens to every model event, tracks download progress/speed/verify/extract state.                                                                                                                                                                                                                                |
+| `src/components/settings/models/ModelsSettings.tsx`, `src/components/onboarding/Onboarding.tsx` + `ModelCard.tsx`, `src/components/model-selector/*` | Frontend consumers. Both settings and onboarding hide legacy `Url`-sourced models that are not already downloaded (`isLegacyModel` / `isLegacySource`).                                                                                                                                                                                                              |
 
 ## Core Types (exact names)
 
@@ -41,8 +41,8 @@ All in `src-tauri/src/managers/model.rs` unless noted:
   The non-TranscribeCpp variants are the legacy ONNX directory engines.
 - `ModelSource` (enum): `Url { url, sha256: Option<String> }` (legacy
   blob.handy.computer downloads), `HuggingFace { repo_id, revision }` (catalog
-  + HF-cache-discovered GGUFs, fetched via hf-hub into the shared HF cache),
-  `Local` (user-dropped custom file, nothing to download).
+  - HF-cache-discovered GGUFs, fetched via hf-hub into the shared HF cache),
+    `Local` (user-dropped custom file, nothing to download).
 - `ModelInfo` (the frontend-facing shape, specta-typed): `id`, `name`,
   `description`, `filename`, `source`, `size_mb`, `is_downloaded`,
   `is_downloading`, `partial_size`, `is_directory`, `engine_type`,
@@ -76,7 +76,7 @@ All in `src-tauri/src/managers/model.rs` unless noted:
   `CapabilityProber` trait, `GgufHeaderProber`, `KNOWN_ARCHES`,
   `read_header_metadata` (64 KiB initial prefix, geometric growth to 16 MiB cap).
 - `src-tauri/src/managers/gguf_meta.rs`: `GgufMetadata` (`kv: HashMap<String,
-  GgufValue>` with `get_str` / `get_bool` / `get_string_array`), `GgufValue`,
+GgufValue>` with `get_str` / `get_bool` / `get_string_array`), `GgufValue`,
   `GgufError` (`NotGguf`, `UnsupportedVersion`, `Truncated { needed }`,
   `Malformed`), `parse_header(bytes, wanted_keys)` — materializes only requested
   keys, skips the rest with checked cursor movement.
@@ -89,19 +89,19 @@ Top level: `{ "catalog_version": 1, "generated_at": ISO8601, "models": [...] }`.
 65 models currently. Per-model keys (Rust deserializes a subset; serde ignores
 the rest):
 
-| Key | Used by Rust? | Meaning |
-|---|---|---|
-| `id` | yes | HF repo id, e.g. `handy-computer/whisper-medium-gguf`. |
-| `slug`, `family`, `parameters`, `base_model`, `license`, `language_count` | no (ignored) | Metadata for the generator/humans. `parameters` (e.g. "0.6B") would be useful for Model Lab memory estimates but is currently dropped. |
-| `name`, `description` | yes | Display copy (description is hand-curated for ranked models, generated otherwise). |
-| `architecture` | yes | transcribe-cpp arch string; a test (`catalog/mod.rs (catalog_architectures_are_known_to_capability_probe)`) asserts every one is in `KNOWN_ARCHES`. |
-| `languages` | yes | Full language-code list (up to 100 for whisper). |
-| `capabilities` | yes | `{ streaming: bool, translate: bool, lang_detect: bool, timestamps: "none"\|"token"\|"segment"\|"word" }`. **`timestamps` is parsed by the generator but NOT wired into `CapabilityProbe` yet** — noted in `catalog/mod.rs (CatalogCaps)` as future work. |
-| `speed_score`, `accuracy_score` | yes | 0–100 in JSON; divided by 100 into `ModelDescriptor` (UI uses 0.0–1.0). Derived in `gen_catalog.py` from benchmark rtf/WER: `speed = 100·(1 − e^(−rtf/8))`, `accuracy = 100·e^(−wer/15)`; models with no benchmark rtf get a floor of 10. |
-| `files[]` | yes | Quantizations: `{ filename, quant, size_bytes }`. Typical set: Q4_K_M, Q5_K_M, Q6_K, Q8_0, (B)F16, F32. |
-| `default_quant` | yes | Which quant is surfaced (usually Q8_0 for small models, Q5_K_M for large ones). |
-| `recommended` | yes | The small curated onboarding set (currently 5: parakeet-unified-en, nemotron-3.5-streaming, canary-180m-flash, cohere-transcribe-03-2026, whisper-medium). Badged "Recommended". |
-| `recommended_rank` | yes | Editorial sort priority 1..10 (independent of `recommended` — ranks 6–10 are ordered high but not badged). Unranked models sort last (`rank_of` returns `u32::MAX`). |
+| Key                                                                       | Used by Rust? | Meaning                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                                                      | yes           | HF repo id, e.g. `handy-computer/whisper-medium-gguf`.                                                                                                                                                                                                    |
+| `slug`, `family`, `parameters`, `base_model`, `license`, `language_count` | no (ignored)  | Metadata for the generator/humans. `parameters` (e.g. "0.6B") would be useful for Model Lab memory estimates but is currently dropped.                                                                                                                    |
+| `name`, `description`                                                     | yes           | Display copy (description is hand-curated for ranked models, generated otherwise).                                                                                                                                                                        |
+| `architecture`                                                            | yes           | transcribe-cpp arch string; a test (`catalog/mod.rs (catalog_architectures_are_known_to_capability_probe)`) asserts every one is in `KNOWN_ARCHES`.                                                                                                       |
+| `languages`                                                               | yes           | Full language-code list (up to 100 for whisper).                                                                                                                                                                                                          |
+| `capabilities`                                                            | yes           | `{ streaming: bool, translate: bool, lang_detect: bool, timestamps: "none"\|"token"\|"segment"\|"word" }`. **`timestamps` is parsed by the generator but NOT wired into `CapabilityProbe` yet** — noted in `catalog/mod.rs (CatalogCaps)` as future work. |
+| `speed_score`, `accuracy_score`                                           | yes           | 0–100 in JSON; divided by 100 into `ModelDescriptor` (UI uses 0.0–1.0). Derived in `gen_catalog.py` from benchmark rtf/WER: `speed = 100·(1 − e^(−rtf/8))`, `accuracy = 100·e^(−wer/15)`; models with no benchmark rtf get a floor of 10.                 |
+| `files[]`                                                                 | yes           | Quantizations: `{ filename, quant, size_bytes }`. Typical set: Q4_K_M, Q5_K_M, Q6_K, Q8_0, (B)F16, F32.                                                                                                                                                   |
+| `default_quant`                                                           | yes           | Which quant is surfaced (usually Q8_0 for small models, Q5_K_M for large ones).                                                                                                                                                                           |
+| `recommended`                                                             | yes           | The small curated onboarding set (currently 5: parakeet-unified-en, nemotron-3.5-streaming, canary-180m-flash, cohere-transcribe-03-2026, whisper-medium). Badged "Recommended".                                                                          |
+| `recommended_rank`                                                        | yes           | Editorial sort priority 1..10 (independent of `recommended` — ranks 6–10 are ordered high but not badged). Unranked models sort last (`rank_of` returns `u32::MAX`).                                                                                      |
 
 Descriptor id construction (`catalog/mod.rs (From<CatalogModel> for
 ModelDescriptor)`): `"{repo_id}/{default_quant_filename}"` — deliberately the
@@ -131,12 +131,12 @@ progressively better view of it:
    - `stt.capability.streaming` → `supports_streaming`
    - `stt.capability.translate` → `supports_translation`
    - `stt.capability.lang_detect` → `supports_language_detect`
-   Absent keys stay `None` ("unknown", never guessed). Notably, parakeet-family
-   streaming is *inferred* by transcribe-cpp from encoder hparams, so the flat
-   key can be absent for genuinely streaming models — the probe leaves it
-   unknown. Legacy `.bin` (GGML) files have no GGUF header at all and get
-   `CapabilityProbe::default()` (everything unknown → rendered as `false`
-   through `model.rs (local_caps)`).
+     Absent keys stay `None` ("unknown", never guessed). Notably, parakeet-family
+     streaming is _inferred_ by transcribe-cpp from encoder hparams, so the flat
+     key can be absent for genuinely streaming models — the probe leaves it
+     unknown. Legacy `.bin` (GGML) files have no GGUF header at all and get
+     `CapabilityProbe::default()` (everything unknown → rendered as `false`
+     through `model.rs (local_caps)`).
 3. **Runtime reconciliation (ground truth).** When a TranscribeCpp model loads,
    `managers/transcription.rs` (~line 565) reads the loaded session's real
    capabilities and calls
@@ -260,6 +260,7 @@ only logs a warning and still emits the event (returns Ok).
 `commands/models.rs (delete_model)`: if deleting the selected model, first
 `TranscriptionManager::unload_model` and clear `settings.selected_model`. Then
 `model.rs (delete_model)`:
+
 - HF-sourced: resolves the cached file and deletes the **entire repo directory**
   (`models--org--name/`, blobs+refs+snapshots) from the shared HF cache —
   a deliberate product decision, but it removes all quants and anything other
@@ -280,14 +281,14 @@ merge is additive (existing entries keep runtime-probed capabilities); then
 
 ## Storage Paths
 
-| What | Where |
-|---|---|
-| Models dir (legacy + custom) | `{app_data_dir}/models` — macOS: `~/Library/Application Support/com.pais.handy/models` (bundle id from `src-tauri/tauri.conf.json`). Portable mode (`src-tauri/src/portable.rs`): `Data/` next to the executable when a `portable` marker file with the magic string exists. |
-| In-flight download | `{models_dir}/{filename}.partial` |
-| In-flight extraction | `{models_dir}/{filename}.extracting/` |
-| HF-sourced models | Shared Hugging Face cache: `$HF_HOME` else `~/.cache/huggingface/hub` (note: `~/.cache` even on macOS — hf-hub convention, shared with other tools). Layout `models--{org}--{name}/snapshots/{commit}/{file}`. Cancelled HF downloads leave a `.sync.part` there for resume. |
-| Bundled resources | `resources/models/ggml-small.bin` (optional), `resources/models/gigaam_vocab.txt` — resolved via Tauri `BaseDirectory::Resource` (inside the .app bundle on macOS). |
-| Settings | `settings_store.json` via tauri-plugin-store (`settings.rs (SETTINGS_STORE_PATH)`, portable-aware via `portable::store_path`). |
+| What                         | Where                                                                                                                                                                                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Models dir (legacy + custom) | `{app_data_dir}/models` — macOS: `~/Library/Application Support/com.kylebegeman.murmur/models` (bundle id from `src-tauri/tauri.conf.json`). Portable mode (`src-tauri/src/portable.rs`): `Data/` next to the executable when a `portable` marker file with the magic string exists. |
+| In-flight download           | `{models_dir}/{filename}.partial`                                                                                                                                                                                                                                                    |
+| In-flight extraction         | `{models_dir}/{filename}.extracting/`                                                                                                                                                                                                                                                |
+| HF-sourced models            | Shared Hugging Face cache: `$HF_HOME` else `~/.cache/huggingface/hub` (note: `~/.cache` even on macOS — hf-hub convention, shared with other tools). Layout `models--{org}--{name}/snapshots/{commit}/{file}`. Cancelled HF downloads leave a `.sync.part` there for resume.         |
+| Bundled resources            | `resources/models/ggml-small.bin` (optional), `resources/models/gigaam_vocab.txt` — resolved via Tauri `BaseDirectory::Resource` (inside the .app bundle on macOS).                                                                                                                  |
+| Settings                     | `settings_store.json` via tauri-plugin-store (`settings.rs (SETTINGS_STORE_PATH)`, portable-aware via `portable::store_path`).                                                                                                                                                       |
 
 Path resolution for loading: `model.rs (get_model_path)` — refuses
 not-downloaded or currently-downloading models, resolves HF entries through
@@ -327,18 +328,18 @@ All in `src-tauri/src/commands/models.rs`, registered in `lib.rs`
 (collect_commands, ~lines 604–613), specta-generated bindings in
 `src/bindings.ts` (camelCase: `commands.getAvailableModels()` etc.).
 
-| Command | Args | Returns | Notes |
-|---|---|---|---|
-| `get_available_models` | – | `Vec<ModelInfo>` | Ranked/sorted list. |
-| `get_model_info` | `model_id: String` | `Option<ModelInfo>` | |
-| `rescan_local_models` | – | `()` | Emits `models-updated` on success. |
-| `download_model` | `model_id` | `()` | Emits `model-download-failed` on error (command wrapper, not manager). |
-| `cancel_download` | `model_id` | `()` | Emits `model-download-cancelled`. |
-| `delete_model` | `model_id` | `()` | May unload active model + clear `selected_model` first. Emits `model-deleted`. |
-| `set_active_model` | `model_id` | `()` | Delegates to `switch_active_model`; writes `selected_model` + `onboarding_completed`. |
-| `get_current_model` | – | `String` | Just reads `settings.selected_model`. |
-| `get_transcription_model_status` | – | `Option<String>` | Loaded (in-memory) model id from `TranscriptionManager`. |
-| `is_model_loading` | – | `bool` | **Misleading**: returns `current_model.is_none()`, i.e. "no model loaded", not "loading in progress". |
+| Command                          | Args               | Returns             | Notes                                                                                                 |
+| -------------------------------- | ------------------ | ------------------- | ----------------------------------------------------------------------------------------------------- |
+| `get_available_models`           | –                  | `Vec<ModelInfo>`    | Ranked/sorted list.                                                                                   |
+| `get_model_info`                 | `model_id: String` | `Option<ModelInfo>` |                                                                                                       |
+| `rescan_local_models`            | –                  | `()`                | Emits `models-updated` on success.                                                                    |
+| `download_model`                 | `model_id`         | `()`                | Emits `model-download-failed` on error (command wrapper, not manager).                                |
+| `cancel_download`                | `model_id`         | `()`                | Emits `model-download-cancelled`.                                                                     |
+| `delete_model`                   | `model_id`         | `()`                | May unload active model + clear `selected_model` first. Emits `model-deleted`.                        |
+| `set_active_model`               | `model_id`         | `()`                | Delegates to `switch_active_model`; writes `selected_model` + `onboarding_completed`.                 |
+| `get_current_model`              | –                  | `String`            | Just reads `settings.selected_model`.                                                                 |
+| `get_transcription_model_status` | –                  | `Option<String>`    | Loaded (in-memory) model id from `TranscriptionManager`.                                              |
+| `is_model_loading`               | –                  | `bool`              | **Misleading**: returns `current_model.is_none()`, i.e. "no model loaded", not "loading in progress". |
 
 Adjacent (transcription subsystem, listed for completeness):
 `set_model_unload_timeout`, `get_model_load_status`, `unload_model_manually`
@@ -348,18 +349,18 @@ Adjacent (transcription subsystem, listed for completeness):
 
 All consumed in `src/stores/modelStore.ts (initialize)` unless noted.
 
-| Event | Payload | Emitted from |
-|---|---|---|
-| `model-download-progress` | `DownloadProgress { model_id, downloaded, total, percentage }` | `model.rs (download_model)` URL path + `HfDownloadProgress::emit` (HF path). Throttled ~10/sec, final emit guaranteed. |
-| `model-download-complete` | `model_id: String` | `model.rs (download_model / download_hf_model)`. |
-| `model-download-failed` | `{ model_id, error }` (JSON) | `commands/models.rs (download_model)` wrapper only. Frontend toasts the error. |
-| `model-download-cancelled` | `model_id: String` | `model.rs (cancel_download)`. |
-| `model-verification-started` / `model-verification-completed` | `model_id: String` | `model.rs (download_model)` around SHA-256 hashing (URL path only). |
-| `model-extraction-started` / `model-extraction-completed` | `model_id: String` | `model.rs (download_model)` around tar.gz unpack (directory models only). |
-| `model-extraction-failed` | `{ model_id, error }` (JSON) | `model.rs (download_model)` unpack error closure. The command also emits `model-download-failed` for the same failure. |
-| `model-deleted` | `model_id: String` | `model.rs (delete_model)`. |
-| `models-updated` | `()` | `model.rs (rescan_local_models)`. |
-| `model-state-changed` | `ModelStateEvent { event_type, model_id, model_name, error }` (`managers/transcription.rs`) | `commands/models.rs (switch_active_model)` with `event_type: "selection_changed"`; also heavily by `TranscriptionManager` for `loading_started` / `loaded` / `failed` / unload lifecycle (other subsystem). Listened to by `modelStore`, `App.tsx` (load-failure toast), `ModelSelector.tsx`. |
+| Event                                                         | Payload                                                                                     | Emitted from                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model-download-progress`                                     | `DownloadProgress { model_id, downloaded, total, percentage }`                              | `model.rs (download_model)` URL path + `HfDownloadProgress::emit` (HF path). Throttled ~10/sec, final emit guaranteed.                                                                                                                                                                        |
+| `model-download-complete`                                     | `model_id: String`                                                                          | `model.rs (download_model / download_hf_model)`.                                                                                                                                                                                                                                              |
+| `model-download-failed`                                       | `{ model_id, error }` (JSON)                                                                | `commands/models.rs (download_model)` wrapper only. Frontend toasts the error.                                                                                                                                                                                                                |
+| `model-download-cancelled`                                    | `model_id: String`                                                                          | `model.rs (cancel_download)`.                                                                                                                                                                                                                                                                 |
+| `model-verification-started` / `model-verification-completed` | `model_id: String`                                                                          | `model.rs (download_model)` around SHA-256 hashing (URL path only).                                                                                                                                                                                                                           |
+| `model-extraction-started` / `model-extraction-completed`     | `model_id: String`                                                                          | `model.rs (download_model)` around tar.gz unpack (directory models only).                                                                                                                                                                                                                     |
+| `model-extraction-failed`                                     | `{ model_id, error }` (JSON)                                                                | `model.rs (download_model)` unpack error closure. The command also emits `model-download-failed` for the same failure.                                                                                                                                                                        |
+| `model-deleted`                                               | `model_id: String`                                                                          | `model.rs (delete_model)`.                                                                                                                                                                                                                                                                    |
+| `models-updated`                                              | `()`                                                                                        | `model.rs (rescan_local_models)`.                                                                                                                                                                                                                                                             |
+| `model-state-changed`                                         | `ModelStateEvent { event_type, model_id, model_name, error }` (`managers/transcription.rs`) | `commands/models.rs (switch_active_model)` with `event_type: "selection_changed"`; also heavily by `TranscriptionManager` for `loading_started` / `loaded` / `failed` / unload lifecycle (other subsystem). Listened to by `modelStore`, `App.tsx` (load-failure toast), `ModelSelector.tsx`. |
 
 ## Settings Keys
 
@@ -381,7 +382,7 @@ persisted in `settings_store.json`):
 
 ## Platform-Specific Behavior
 
-- **macOS**: models dir under `~/Library/Application Support/com.pais.handy/`;
+- **macOS**: models dir under `~/Library/Application Support/com.kylebegeman.murmur/`;
   bundled resources resolve inside the `.app`; HF cache still at
   `~/.cache/huggingface/hub` (not `~/Library/Caches`) unless `HF_HOME` is set.
   No macOS-specific code paths inside the model subsystem itself.
@@ -421,7 +422,7 @@ persisted in `settings_store.json`):
 8. **Legacy hardcoded capability lies**: the legacy `.bin`/ONNX table hardcodes
    `supports_language_detection: true` for models where that's a preserved
    historical behavior rather than probed truth, and `supports_streaming:
-   false` even for `MoonshineStreaming` engines (streaming preview is
+false` even for `MoonshineStreaming` engines (streaming preview is
    transcribe-cpp-only). Runtime reconciliation only runs for TranscribeCpp
    loads, so ONNX-engine entries are never corrected.
 9. **Catalog `timestamps` capability is dropped** on the Rust side — Model Lab
@@ -435,9 +436,9 @@ persisted in `settings_store.json`):
     entries carry sizes but no hashes.
 12. **GGUF probe silently drops models**: any header parse failure (or header
     > 16 MiB cap in `model_capabilities.rs (read_header_metadata)`) yields
-    `CapabilityProbe::unsupported()`, and the HF-cache scan then skips the file
-    with no log/UI trace. Custom-dir `.gguf`s still appear but with all
-    capabilities false.
+    > `CapabilityProbe::unsupported()`, and the HF-cache scan then skips the file
+    > with no log/UI trace. Custom-dir `.gguf`s still appear but with all
+    > capabilities false.
 13. **Custom model id collisions are silent**: `discover_custom_transcribe_models`
     skips a file whose stem matches an existing id (e.g. a user-dropped
     `turbo.bin` when legacy id `turbo` exists) — the file simply never appears.

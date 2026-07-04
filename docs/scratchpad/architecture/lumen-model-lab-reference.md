@@ -2,29 +2,29 @@
 
 Source explored: `/Users/kyle/Developer/products/lumen` (pnpm monorepo: `apps/web`, `apps/server`, `packages/contracts`, `packages/shared`, `packages/ui-react`, etc.). Lumen has a literal, shipped "Model Lab" area for LLM endpoints/artifacts — the closest existing analog to a Murmur Model Lab for local speech models.
 
-> **Caveat — do NOT adopt `packages/ui-react` wholesale.** `/Users/kyle/Developer/products/lumen/packages/ui-react` is "Lumen Kits" — a reusable React UI kit for products built *by* Lumen (navigation-shell, marketing-pricing, auth-flow, settings), not Lumen's own app chrome. Lumen's Model Lab itself is built from app-local components in `apps/web/src/components/ui/` and `apps/web/src/components/area/`. Borrow the concepts and interaction patterns documented below; do not add Lumen packages as dependencies.
+> **Caveat — do NOT adopt `packages/ui-react` wholesale.** `/Users/kyle/Developer/products/lumen/packages/ui-react` is "Lumen Kits" — a reusable React UI kit for products built _by_ Lumen (navigation-shell, marketing-pricing, auth-flow, settings), not Lumen's own app chrome. Lumen's Model Lab itself is built from app-local components in `apps/web/src/components/ui/` and `apps/web/src/components/area/`. Borrow the concepts and interaction patterns documented below; do not add Lumen packages as dependencies.
 
 ---
 
 ## 1. Where the Model Lab lives in Lumen
 
-| Concern | Lumen path |
-|---|---|
-| Area/surface registration (8 surfaces: endpoints, discovery, fit, downloads, serve-presets, benchmarks, tiny-agents, training; per-surface `riskLevel`) | `/Users/kyle/Developer/products/lumen/packages/contracts/src/areas.ts` (lines ~894–913) |
-| Area shell (breadcrumb header, status-rows side card, surface switch) | `/Users/kyle/Developer/products/lumen/apps/web/src/components/modelLab/ModelLabAreaShell.tsx` |
-| All surface UIs (2,243 lines: rows, metric grids, forms, queries/mutations) | `/Users/kyle/Developer/products/lumen/apps/web/src/components/modelLab/ModelLabSurfaces.tsx` |
-| Pure presentation logic (summaries, sorting, labels, formatters, provider presets) — separately unit-tested | `/Users/kyle/Developer/products/lumen/apps/web/src/components/modelLab/ModelLabSurfaces.logic.ts` (+ `.logic.test.ts`) |
-| Sidebar nav grouping ("Serving" / "Models" / "Experiments") | `/Users/kyle/Developer/products/lumen/apps/web/src/components/sidebar/ModelLabLens.tsx` |
-| Model artifact contract (download lifecycle, import plans, serve presets, benchmark run/report, training) | `/Users/kyle/Developer/products/lumen/packages/contracts/src/modelArtifacts.ts` |
-| Endpoint/capability contract (kinds, locality, capability profile, health, probes, routing) | `/Users/kyle/Developer/products/lumen/packages/contracts/src/modelEndpoints.ts` |
-| Hugging Face catalog contract | `/Users/kyle/Developer/products/lumen/packages/contracts/src/hfCatalog.ts` |
-| HF catalog service (live HF API search, sorted by downloads, file manifests) | `/Users/kyle/Developer/products/lumen/apps/server/src/modelCatalog/Layers/HfCatalogService.ts` |
-| Hardware detection (CPU/RAM/GPU/VRAM/accelerator probe, persisted as a "capability report" artifact) | `/Users/kyle/Developer/products/lumen/apps/server/src/modelEndpoints/Layers/HardwareCapabilityDetector.ts` |
-| RAM/VRAM → fit-verdict heuristic (shared client+server) | `/Users/kyle/Developer/products/lumen/packages/shared/src/modelHardware.ts` |
-| Benchmark runner (fan-out probes across endpoints × artifacts, concurrency 4, timeout-capped) | `/Users/kyle/Developer/products/lumen/apps/server/src/modelArtifacts/Layers/ModelBenchmarkRunner.ts` |
-| Serve-preset planner (artifact × runtime-family matrix) | `/Users/kyle/Developer/products/lumen/apps/server/src/modelArtifacts/Layers/ModelServePlanner.ts` |
-| Download job runner (planned → downloading → ready/failed, gated execution, progress phases) | `/Users/kyle/Developer/products/lumen/apps/server/src/modelArtifacts/Layers/ModelDownloadJobRunner.ts` |
-| Design rationale/history for the whole lifecycle | `/Users/kyle/Developer/products/lumen/docs/archive/2026-07-pre-v1/lumen-cockpit-implementation/roadmap/phases/54-local-ai-model-lab-lifecycle.md` |
+| Concern                                                                                                                                                 | Lumen path                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Area/surface registration (8 surfaces: endpoints, discovery, fit, downloads, serve-presets, benchmarks, tiny-agents, training; per-surface `riskLevel`) | `/Users/kyle/Developer/products/lumen/packages/contracts/src/areas.ts` (lines ~894–913)                                                           |
+| Area shell (breadcrumb header, status-rows side card, surface switch)                                                                                   | `/Users/kyle/Developer/products/lumen/apps/web/src/components/modelLab/ModelLabAreaShell.tsx`                                                     |
+| All surface UIs (2,243 lines: rows, metric grids, forms, queries/mutations)                                                                             | `/Users/kyle/Developer/products/lumen/apps/web/src/components/modelLab/ModelLabSurfaces.tsx`                                                      |
+| Pure presentation logic (summaries, sorting, labels, formatters, provider presets) — separately unit-tested                                             | `/Users/kyle/Developer/products/lumen/apps/web/src/components/modelLab/ModelLabSurfaces.logic.ts` (+ `.logic.test.ts`)                            |
+| Sidebar nav grouping ("Serving" / "Models" / "Experiments")                                                                                             | `/Users/kyle/Developer/products/lumen/apps/web/src/components/sidebar/ModelLabLens.tsx`                                                           |
+| Model artifact contract (download lifecycle, import plans, serve presets, benchmark run/report, training)                                               | `/Users/kyle/Developer/products/lumen/packages/contracts/src/modelArtifacts.ts`                                                                   |
+| Endpoint/capability contract (kinds, locality, capability profile, health, probes, routing)                                                             | `/Users/kyle/Developer/products/lumen/packages/contracts/src/modelEndpoints.ts`                                                                   |
+| Hugging Face catalog contract                                                                                                                           | `/Users/kyle/Developer/products/lumen/packages/contracts/src/hfCatalog.ts`                                                                        |
+| HF catalog service (live HF API search, sorted by downloads, file manifests)                                                                            | `/Users/kyle/Developer/products/lumen/apps/server/src/modelCatalog/Layers/HfCatalogService.ts`                                                    |
+| Hardware detection (CPU/RAM/GPU/VRAM/accelerator probe, persisted as a "capability report" artifact)                                                    | `/Users/kyle/Developer/products/lumen/apps/server/src/modelEndpoints/Layers/HardwareCapabilityDetector.ts`                                        |
+| RAM/VRAM → fit-verdict heuristic (shared client+server)                                                                                                 | `/Users/kyle/Developer/products/lumen/packages/shared/src/modelHardware.ts`                                                                       |
+| Benchmark runner (fan-out probes across endpoints × artifacts, concurrency 4, timeout-capped)                                                           | `/Users/kyle/Developer/products/lumen/apps/server/src/modelArtifacts/Layers/ModelBenchmarkRunner.ts`                                              |
+| Serve-preset planner (artifact × runtime-family matrix)                                                                                                 | `/Users/kyle/Developer/products/lumen/apps/server/src/modelArtifacts/Layers/ModelServePlanner.ts`                                                 |
+| Download job runner (planned → downloading → ready/failed, gated execution, progress phases)                                                            | `/Users/kyle/Developer/products/lumen/apps/server/src/modelArtifacts/Layers/ModelDownloadJobRunner.ts`                                            |
+| Design rationale/history for the whole lifecycle                                                                                                        | `/Users/kyle/Developer/products/lumen/docs/archive/2026-07-pre-v1/lumen-cockpit-implementation/roadmap/phases/54-local-ai-model-lab-lifecycle.md` |
 
 ---
 
@@ -34,9 +34,9 @@ Murmur already has the raw material: `src-tauri/src/managers/model.rs` (`ModelIn
 
 ### 2.1 Catalog browsing
 
-**Lumen:** `HfCatalogEntry` (`packages/contracts/src/hfCatalog.ts`) carries `repoId`, `task` (includes `"automatic-speech-recognition"` — the taxonomy already anticipates speech), `library`, `license`, `gated`, `downloads`, `likes`, `tags`, `defaultRevision`. The Discovery surface (`ModelLabSurfaces.tsx` ~1629–1763) renders a search input + `CatalogEntryRows` (~843–899): each row shows a **Gated/Open badge**, task badge, license/downloads/likes meta, and a single **"Plan"** action. Planning is two-phase: `planImport` picks files (prefers `.gguf`, falls back to `.safetensors` — see `usePlanCatalogDownloadMutation`, ~1373–1411) and creates a *planned* artifact with `totalBytes`, `requiresApproval`, `gated` before any bytes move.
+**Lumen:** `HfCatalogEntry` (`packages/contracts/src/hfCatalog.ts`) carries `repoId`, `task` (includes `"automatic-speech-recognition"` — the taxonomy already anticipates speech), `library`, `license`, `gated`, `downloads`, `likes`, `tags`, `defaultRevision`. The Discovery surface (`ModelLabSurfaces.tsx` ~1629–1763) renders a search input + `CatalogEntryRows` (~843–899): each row shows a **Gated/Open badge**, task badge, license/downloads/likes meta, and a single **"Plan"** action. Planning is two-phase: `planImport` picks files (prefers `.gguf`, falls back to `.safetensors` — see `usePlanCatalogDownloadMutation`, ~1373–1411) and creates a _planned_ artifact with `totalBytes`, `requiresApproval`, `gated` before any bytes move.
 
-**Murmur mapping:** A catalog pane listing available speech models (Whisper GGUF/GGML family via transcribe-cpp, Parakeet/Moonshine/SenseVoice ONNX via transcribe-rs) with per-row badges for engine, license, and size, and a **plan-before-download** step that shows total bytes and target path before committing. Murmur's static curated list in `model.rs` maps to Lumen's "planned artifacts"; a remote curated JSON (like `blob.handy.computer`) plays the role of the HF API. Key interaction to borrow: *catalog row → "Plan" → planned artifact appears in Downloads with explicit size — download is a separate, deliberate act.*
+**Murmur mapping:** A catalog pane listing available speech models (Whisper GGUF/GGML family via transcribe-cpp, Parakeet/Moonshine/SenseVoice ONNX via transcribe-rs) with per-row badges for engine, license, and size, and a **plan-before-download** step that shows total bytes and target path before committing. Murmur's static curated list in `model.rs` maps to Lumen's "planned artifacts"; a remote curated JSON (like `blob.handy.computer`) plays the role of the HF API. Key interaction to borrow: _catalog row → "Plan" → planned artifact appears in Downloads with explicit size — download is a separate, deliberate act._
 
 ### 2.2 Download state / artifact registry
 
@@ -47,11 +47,12 @@ Murmur already has the raw material: `src-tauri/src/managers/model.rs` (`ModelIn
 ### 2.3 Provider / runtime selection
 
 **Lumen:** Two-layer split worth copying conceptually:
+
 - **Artifact** (bytes on disk: `format: gguf | safetensors | ollama | lora | ...`) vs. **endpoint/runtime** (`ModelEndpointKind`: ollama, llama.cpp, vLLM, SGLang…; `modelEndpoints.ts` 44–55).
 - `ModelServePlanner.ts` generates the cross-product: for each ready artifact, one `ModelServePreset` per runtime family, each with a `fitHint` and `requiresApproval`. `ServePresetRows` (`ModelLabSurfaces.tsx` ~964–1053) badges each preset "recommended vs Not favored" based on `fitHint.viablePresetFamilies.includes(preset.endpointKind)`.
 - Registration presets for known providers (`MODEL_ENDPOINT_PROVIDER_PRESETS`, `.logic.ts` 270–349): pick "Ollama local" and the form pre-fills id/kind/locality/baseUrl.
 
-**Murmur mapping:** Murmur's `EngineType` (TranscribeCpp vs transcribe-rs/ONNX) is the runtime family; GPU backend (Metal/Vulkan/CPU) is the preset dimension. A Murmur Model Lab should show, per model, *which engine + acceleration path will run it* and mark the recommended one, instead of hiding engine choice. The pre-filled-preset form pattern maps to "Add custom model" (pre-fill known Whisper GGUF URLs/paths per variant).
+**Murmur mapping:** Murmur's `EngineType` (TranscribeCpp vs transcribe-rs/ONNX) is the runtime family; GPU backend (Metal/Vulkan/CPU) is the preset dimension. A Murmur Model Lab should show, per model, _which engine + acceleration path will run it_ and mark the recommended one, instead of hiding engine choice. The pre-filled-preset form pattern maps to "Add custom model" (pre-fill known Whisper GGUF URLs/paths per variant).
 
 ### 2.4 Local vs remote capability display
 
@@ -62,6 +63,7 @@ Murmur already has the raw material: `src-tauri/src/managers/model.rs` (`ModelIn
 ### 2.5 Speed / accuracy / memory labeling
 
 **Lumen (richest reusable idea):**
+
 - `ModelCapabilityProfile` (`modelEndpoints.ts` 99–133): capability booleans + `observedTokensPerSecond` (measured, not claimed), `reliabilityScore` 0–100, `costTier`.
 - `HardwareCapabilityProfile` (242–264): platform/arch/cores/RAM/VRAM/GPUs/accelerators + `fitTier: minimal|modest|capable|workstation` and a `partial` flag when probes were incomplete.
 - `deriveServeFitHint` (`packages/shared/src/modelHardware.ts`): a pure, threshold-table function mapping VRAM/RAM → `{ verdict: fits|tight|cpu-only|insufficient|unknown, quantizationCeiling, maxModelParamsB, rationale }`. Every verdict ships a human-readable **rationale sentence**.
@@ -72,15 +74,16 @@ Murmur already has the raw material: `src-tauri/src/managers/model.rs` (`ModelIn
 ### 2.6 Benchmark UX
 
 **Lumen:**
+
 - Contract: `ModelBenchmarkRunInput { kind: fit|benchmark, endpointIds[], artifactIds[], timeoutMs ≤ 30s, persist }` → `ModelBenchmarkReport { endpointId, artifactId, probeResult (status + latencyMs + capabilityUpdates), fitHint, createdAt }` (`modelArtifacts.ts` 305–335).
 - Runner (`ModelBenchmarkRunner.ts`): empty selection = "benchmark everything enabled/ready" default; fan-out endpoints × artifacts with `concurrency: 4`; probes measure wall-clock `latencyMs` (`ModelEndpointProber.ts` ~496) and can write back `capabilityUpdates` to the profile.
-- UI (`ModelLabBenchmarksSurface`, `ModelLabSurfaces.tsx` 1940–2035): one **"Run"** button, then a summary tile row (**Reports / Healthy / Degraded / Avg latency**) + `BenchmarkReportRows` with health badge, fit badge, latency meta, relative timestamps. Reports are explicitly scoped: *"Reports are scoped to the latest run from this surface."* Results also persist as artifacts (`ModelEndpointArtifactKind: fit-report | benchmark-report | probe-log | capability-report`, `modelEndpoints.ts` 181–188).
+- UI (`ModelLabBenchmarksSurface`, `ModelLabSurfaces.tsx` 1940–2035): one **"Run"** button, then a summary tile row (**Reports / Healthy / Degraded / Avg latency**) + `BenchmarkReportRows` with health badge, fit badge, latency meta, relative timestamps. Reports are explicitly scoped: _"Reports are scoped to the latest run from this surface."_ Results also persist as artifacts (`ModelEndpointArtifactKind: fit-report | benchmark-report | probe-log | capability-report`, `modelEndpoints.ts` 181–188).
 
 **Murmur mapping:** "Benchmark" = transcribe a bundled sample WAV (or the user's last recording, or user-picked file) through each selected model. Report per model: load time, RTF/x-realtime speed (Murmur's analog of latencyMs / tokens-per-sec), peak memory, and — if a reference transcript exists for the bundled sample — WER as the accuracy column. Borrow: single Run button; select-none-means-all default; hard timeout; concurrency cap (probably 1 for speech models due to memory); summary tiles above rows; persist reports so measured numbers can replace the hardcoded `speed_score`/`accuracy_score` ("observed" beats "claimed" — Lumen's `observedTokensPerSecond` naming makes that distinction explicit).
 
 ### 2.7 Comparison UI
 
-**Lumen:** Comparison is deliberately lightweight — no side-by-side table. It is *uniform rows + shared badge vocabulary + shared summary tiles*, sorted by health then name (`sortByHealthAndName`, `.logic.ts` 87–104). The "fit" surface stacks `HardwareCapabilityPanel` on top of the benchmark surface in fit mode (`ModelLabHardwareFitSurface`, 1899–1938) so hardware context and per-model verdicts read as one comparison. The generic row primitive is `AreaListRow` (title / badges / meta / detail / actions) + `MetricTile` + `MetaChip` in `apps/web/src/components/area/`.
+**Lumen:** Comparison is deliberately lightweight — no side-by-side table. It is _uniform rows + shared badge vocabulary + shared summary tiles_, sorted by health then name (`sortByHealthAndName`, `.logic.ts` 87–104). The "fit" surface stacks `HardwareCapabilityPanel` on top of the benchmark surface in fit mode (`ModelLabHardwareFitSurface`, 1899–1938) so hardware context and per-model verdicts read as one comparison. The generic row primitive is `AreaListRow` (title / badges / meta / detail / actions) + `MetricTile` + `MetaChip` in `apps/web/src/components/area/`.
 
 **Murmur mapping:** For 5–15 speech models, copy this: one consistent row layout (name, state badge, engine badge, fit badge; meta = size · speed · accuracy · last benchmarked; detail = rationale sentence; actions = Download/Benchmark/Set default), a 4-tile summary strip, and health-first sorting (ready models first, then by fit). Only add a true side-by-side table if benchmark history grows.
 

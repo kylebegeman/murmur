@@ -25,19 +25,19 @@ runtime capability reconciliation back into the `ModelManager` registry.
 
 ## Key files
 
-| File | Role |
-| --- | --- |
-| `src-tauri/src/managers/transcription.rs` | The whole subsystem: `TranscriptionManager`, `StreamRouter`, `LoadedEngine`, stream worker, batch transcribe, accelerator/backend selection, post-processing entry point, idle-unload watcher, CLI device helpers. ~1950 lines. |
-| `src-tauri/src/commands/transcription.rs` | Three thin Tauri commands: `set_model_unload_timeout`, `get_model_load_status`, `unload_model_manually`. |
-| `src-tauri/src/audio_toolkit/text.rs` | Text post-processing: `apply_custom_words` (fuzzy Levenshtein + Soundex + n-gram correction) and `filter_transcription_output` (language-aware filler-word removal + stutter collapse). Pure functions, well unit-tested. |
-| `src-tauri/src/managers/model.rs` | (adjacent subsystem) `EngineType`, `ModelInfo` (incl. `supports_streaming`), `effective_language()` coercion, `set_runtime_capabilities()` reconciliation. |
-| `src-tauri/src/managers/model_capabilities.rs` | (adjacent) GGUF header probe; reads `stt.capability.streaming` etc. pre-download/pre-load. |
-| `src-tauri/src/catalog/catalog.json` + `catalog/mod.rs` | (adjacent) bundled model registry with `capabilities.streaming` flags. |
-| `src-tauri/src/actions.rs` | (adjacent, orchestration) `TranscribeAction::start/stop` — decides streaming vs batch, finalizes, post-processes, pastes. |
-| `src-tauri/src/managers/audio.rs` + `src-tauri/src/audio_toolkit/audio/recorder.rs` | (adjacent, audio capture) feeds VAD-gated 16 kHz frames into `StreamRouter::feed` via the recorder's audio callback. |
-| `src-tauri/src/commands/history.rs` | (adjacent) `retry_history_entry_transcription` re-runs batch `transcribe()` on a saved WAV. |
-| `src-tauri/src/lib.rs` | Command/event registration; headless CLI `--transcribe-file` benchmark path; startup init (`init_transcribe_backend`, `apply_accelerator_settings`). |
-| `src/overlay/RecordingOverlay.tsx` | (frontend) consumes `streamTextEvent` / `streamPhaseEvent` and renders the live panel. |
+| File                                                                                | Role                                                                                                                                                                                                                            |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src-tauri/src/managers/transcription.rs`                                           | The whole subsystem: `TranscriptionManager`, `StreamRouter`, `LoadedEngine`, stream worker, batch transcribe, accelerator/backend selection, post-processing entry point, idle-unload watcher, CLI device helpers. ~1950 lines. |
+| `src-tauri/src/commands/transcription.rs`                                           | Three thin Tauri commands: `set_model_unload_timeout`, `get_model_load_status`, `unload_model_manually`.                                                                                                                        |
+| `src-tauri/src/audio_toolkit/text.rs`                                               | Text post-processing: `apply_custom_words` (fuzzy Levenshtein + Soundex + n-gram correction) and `filter_transcription_output` (language-aware filler-word removal + stutter collapse). Pure functions, well unit-tested.       |
+| `src-tauri/src/managers/model.rs`                                                   | (adjacent subsystem) `EngineType`, `ModelInfo` (incl. `supports_streaming`), `effective_language()` coercion, `set_runtime_capabilities()` reconciliation.                                                                      |
+| `src-tauri/src/managers/model_capabilities.rs`                                      | (adjacent) GGUF header probe; reads `stt.capability.streaming` etc. pre-download/pre-load.                                                                                                                                      |
+| `src-tauri/src/catalog/catalog.json` + `catalog/mod.rs`                             | (adjacent) bundled model registry with `capabilities.streaming` flags.                                                                                                                                                          |
+| `src-tauri/src/actions.rs`                                                          | (adjacent, orchestration) `TranscribeAction::start/stop` — decides streaming vs batch, finalizes, post-processes, pastes.                                                                                                       |
+| `src-tauri/src/managers/audio.rs` + `src-tauri/src/audio_toolkit/audio/recorder.rs` | (adjacent, audio capture) feeds VAD-gated 16 kHz frames into `StreamRouter::feed` via the recorder's audio callback.                                                                                                            |
+| `src-tauri/src/commands/history.rs`                                                 | (adjacent) `retry_history_entry_transcription` re-runs batch `transcribe()` on a saved WAV.                                                                                                                                     |
+| `src-tauri/src/lib.rs`                                                              | Command/event registration; headless CLI `--transcribe-file` benchmark path; startup init (`init_transcribe_backend`, `apply_accelerator_settings`).                                                                            |
+| `src/overlay/RecordingOverlay.tsx`                                                  | (frontend) consumes `streamTextEvent` / `streamPhaseEvent` and renders the live panel.                                                                                                                                          |
 
 ## Engine abstraction
 
@@ -72,7 +72,7 @@ variants). Two engine libraries:
   Accelerator is a process-global (`accel::set_ort_accelerator`).
 
 **Important naming trap**: `EngineType::MoonshineStreaming` wraps transcribe-rs's
-ONNX `StreamingModel`, but the app only ever calls its *batch* `transcribe()`
+ONNX `StreamingModel`, but the app only ever calls its _batch_ `transcribe()`
 (`transcription.rs (transcribe)`, `LoadedEngine::MoonshineStreaming` arm). The live
 overlay streaming path matches exclusively on `LoadedEngine::TranscribeCpp`; ONNX
 "streaming" moonshine never feeds the live preview. The catalog's GGUF
@@ -83,7 +83,7 @@ overlay streaming path matches exclusively on `LoadedEngine::TranscribeCpp`; ONN
 Two layers, deliberately:
 
 1. **Pre-recording (decides whether to even try)** — `actions.rs
-   (TranscribeAction::start)` reads `ModelInfo.supports_streaming` from the
+(TranscribeAction::start)` reads `ModelInfo.supports_streaming` from the
    `ModelManager` registry. That flag comes from, in increasing authority:
    - `catalog.json` `capabilities.streaming` (currently true for seven models:
      `parakeet-unified-en-0.6b-gguf`, `nemotron-3.5-asr-streaming-0.6b-gguf`,
@@ -97,7 +97,7 @@ Two layers, deliberately:
      `transcription.rs (load_model_with_device)` calls
      `session.model().capabilities()` and pushes the real values into
      `model.rs (ModelManager::set_runtime_capabilities)` (streaming, translate,
-     language-detect, language list). This matters because transcribe-cpp *infers*
+     language-detect, language list). This matters because transcribe-cpp _infers_
      streaming for parakeet/nemotron families where the flat GGUF key is absent.
    - All ONNX engine types are `supports_streaming: false` in the registry.
 2. **At stream start (ground truth)** — `transcription.rs (run_stream_worker)`
@@ -122,7 +122,7 @@ Two layers, deliberately:
 5. Per-`EngineType` construction (see enum above). For `TranscribeCpp`:
    - backend: explicit `device_index` (CLI `--device-index` =>
      `resolve_device_index`) or `select_transcribe_backend(settings.transcribe_accelerator)`
-     + `resolve_gpu_device(...)` from settings;
+     - `resolve_gpu_device(...)` from settings;
    - `Model::load_with(&path, &ModelOptions { backend, gpu_device })`, then
      `model.session()`;
    - reconcile runtime capabilities into the registry (see above).
@@ -160,7 +160,7 @@ transcription." on the `transcription-error` toast.
   writes settings and calls `reload_model_on_next_use()`; the flag makes the next
   `initiate_model_load` reload even though an engine is resident.
 - **Panic containment**: `transcribe()` wraps the engine call in
-  `catch_unwind`; on panic the engine is *not* returned (dropped = unloaded),
+  `catch_unwind`; on panic the engine is _not_ returned (dropped = unloaded),
   `current_model_id` is cleared, and `model-state-changed` `unloaded` is emitted
   with `error: "Engine panicked: …"`. `lock_engine()` also recovers a poisoned
   mutex.
@@ -182,7 +182,7 @@ transcription." on the `transcription-error` toast.
    - empty audio => `Ok("")` (and possible immediate unload);
    - wait on `loading_condvar`; engine `None` => `Err("Model is not loaded …")`;
    - resolve language: `effective_language_for_model(settings, mm, active_model)`
-     → `model.rs (effective_language)` — coerces the persisted *intent*
+     → `model.rs (effective_language)` — coerces the persisted _intent_
      (`selected_language`, may be `"auto"`) against the loaded model's supported
      languages and language-detect capability; never written back to settings;
    - **take the engine out of the mutex** (no lock held during inference), probe
@@ -198,26 +198,26 @@ transcription." on the `transcription-error` toast.
 
 Per-engine batch options (`transcription.rs (transcribe)` match arms):
 
-| Engine | Options |
-| --- | --- |
-| TranscribeCpp | `RunOptions { task, language, target_language }` from `transcribe_cpp_run_plan`; `RunExtension::Whisper(WhisperRunOptions { initial_prompt: custom_words.join(", ") })` only when the model advertises `Feature::InitialPrompt` (whisper family — attaching it to other archs is rejected with INVALID_ARG); `timestamps: Segment` when prompt-capable (prevents whisper long-form (>30 s) repetition-loop degeneration with prompt + no timestamps), else `None`. |
-| Parakeet | `ParakeetParams { timestamp_granularity: Segment }`. |
-| Moonshine / MoonshineStreaming / GigaAM | `TranscribeOptions::default()` (no language/translate). |
-| SenseVoice | `SenseVoiceParams { language: whitelist zh/en/ja/ko/yue else None, use_itn: true }` (zh-Hans/zh-Hant collapsed via `normalize_cjk_language`). |
-| Canary | `TranscribeOptions { language: unless "auto", translate: settings.translate_to_english }` — transcribe-rs forces the target to English itself. |
-| Cohere | `TranscribeOptions { language: CJK-normalized unless "auto" }`, no translate. |
+| Engine                                  | Options                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| TranscribeCpp                           | `RunOptions { task, language, target_language }` from `transcribe_cpp_run_plan`; `RunExtension::Whisper(WhisperRunOptions { initial_prompt: custom_words.join(", ") })` only when the model advertises `Feature::InitialPrompt` (whisper family — attaching it to other archs is rejected with INVALID_ARG); `timestamps: Segment` when prompt-capable (prevents whisper long-form (>30 s) repetition-loop degeneration with prompt + no timestamps), else `None`. |
+| Parakeet                                | `ParakeetParams { timestamp_granularity: Segment }`.                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Moonshine / MoonshineStreaming / GigaAM | `TranscribeOptions::default()` (no language/translate).                                                                                                                                                                                                                                                                                                                                                                                                            |
+| SenseVoice                              | `SenseVoiceParams { language: whitelist zh/en/ja/ko/yue else None, use_itn: true }` (zh-Hans/zh-Hant collapsed via `normalize_cjk_language`).                                                                                                                                                                                                                                                                                                                      |
+| Canary                                  | `TranscribeOptions { language: unless "auto", translate: settings.translate_to_english }` — transcribe-rs forces the target to English itself.                                                                                                                                                                                                                                                                                                                     |
+| Cohere                                  | `TranscribeOptions { language: CJK-normalized unless "auto" }`, no translate.                                                                                                                                                                                                                                                                                                                                                                                      |
 
 Language/translate plan for transcribe-cpp — `transcription.rs (transcribe_cpp_run_plan)`
 and `(cpp_translation_task)`, shared verbatim by batch and streaming:
 
-- language is only passed if the loaded model *advertises* it in
+- language is only passed if the loaded model _advertises_ it in
   `capabilities().languages` (else auto-detect, avoiding UNSUPPORTED_LANGUAGE);
   `zh-Hans`/`zh-Hant` intents collapse to `zh` for the engine (the script
   conversion happens later via OpenCC in `actions.rs`);
 - `Task::Translate` + `target_language: "en"` only when
   `settings.translate_to_english` AND the model supports translate AND the source
   language isn't `en` (transcribe-cpp needs an explicit target: a null target
-  defaults to the *source*, so es→es would silently happen otherwise).
+  defaults to the _source_, so es→es would silently happen otherwise).
 
 ### Streaming (live preview)
 
@@ -251,16 +251,13 @@ minimal overlay; only the UI differs).
    - builds `RunOptions` via the shared `transcribe_cpp_run_plan`;
    - `session.stream(&run_options, &StreamOptions::default())` (CommitPolicy::Auto,
      family-default strategy); on success sets `stream_active = true`;
-   - loop on the command channel:
-     - `Feed(pcm)` → `stream.feed(&pcm)`; if `update.committed_changed ||
-       update.tentative_changed` → `stream.text()` → `emit_stream_text` →
-       **`stream-text-event`** `{ committed, tentative }` (committed is the
-       append-only flicker-free prefix, tentative the volatile suffix the model
-       may rewrite). Feed errors are only `warn!`-logged; the loop continues.
-     - `Finalize(reply)` → `stream.finalize()`; success replies
-       `Some(stream.text().display())` (committed + tentative); failure replies
-       `None` (=> caller batch-falls-back) after `error!` log.
-     - `Cancel` → `stream.reset()`, break.
+   - loop on the command channel: - `Feed(pcm)` → `stream.feed(&pcm)`; if `update.committed_changed ||
+update.tentative_changed` → `stream.text()` → `emit_stream_text` →
+     **`stream-text-event`** `{ committed, tentative }` (committed is the
+     append-only flicker-free prefix, tentative the volatile suffix the model
+     may rewrite). Feed errors are only `warn!`-logged; the loop continues. - `Finalize(reply)` → `stream.finalize()`; success replies
+     `Some(stream.text().display())` (committed + tentative); failure replies
+     `None` (=> caller batch-falls-back) after `error!` log. - `Cancel` → `stream.reset()`, break.
    - `StreamPerf` logs compute/audio RTF, buffered ms, revision every 5 s
      (`STREAM_PERF_LOG_INTERVAL`), plus a finalize summary;
    - engine returned via `return_engine` (dropped instead if the model changed
@@ -270,16 +267,12 @@ minimal overlay; only the UI differs).
      → **`stream-phase-event`** `{ phase: "working", kind: "transcribing" }` (the
      frontend starts in `"listening"`; Rust only emits transitions away from it);
      else the compact transcribing pill;
-   - `tm.finalize_stream()`:
-     - `router.take()` (closes the route; subsequent frames no-op), sends
-       `Finalize`, waits `recv_timeout(30 s)` (`STREAM_FINALIZE_REPLY_TIMEOUT`);
-     - reply `Some(text)` → `post_process_transcription_text(raw, settings,
-       false)` — streaming NEVER gets a decode prompt, so custom words always go
-       through the fuzzy path — then `maybe_unload_immediately`; returns
-       `Ok(Some(filtered))`;
-     - reply `None` / channel closed / no stream → `Ok(None)`;
-     - timeout → `Err` (the worker may still hold the engine, so the caller
-       surfaces the error instead of starting a contending batch run);
+   - `tm.finalize_stream()`: - `router.take()` (closes the route; subsequent frames no-op), sends
+     `Finalize`, waits `recv_timeout(30 s)` (`STREAM_FINALIZE_REPLY_TIMEOUT`); - reply `Some(text)` → `post_process_transcription_text(raw, settings,
+false)` — streaming NEVER gets a decode prompt, so custom words always go
+     through the fuzzy path — then `maybe_unload_immediately`; returns
+     `Ok(Some(filtered))`; - reply `None` / channel closed / no stream → `Ok(None)`; - timeout → `Err` (the worker may still hold the engine, so the caller
+     surfaces the error instead of starting a contending batch run);
    - `Ok(Some(non-empty))` wins; `Ok(None)` or empty → `tm.transcribe(samples)`
      re-transcribes the full recording; `Err` → `transcription-error` event;
    - if post-processing runs with the Live overlay,
@@ -327,7 +320,7 @@ streaming results before they leave the manager:
    consecutive words → one) and whitespace cleanup.
 
 Chinese Simplified/Traditional conversion (OpenCC) and LLM polishing happen
-*after* this, in `actions.rs (process_transcription_output)` (pipeline
+_after_ this, in `actions.rs (process_transcription_output)` (pipeline
 subsystem), gated on the effective language re-resolved via
 `actions.rs (resolve_effective_language)`.
 
@@ -337,39 +330,39 @@ subsystem), gated on the effective language re-resolved via
 
 Core (this subsystem, `commands/transcription.rs`):
 
-| Command | Payload → Result | Notes |
-| --- | --- | --- |
-| `set_model_unload_timeout` | `{ timeout: ModelUnloadTimeout }` → `()` | writes `settings.model_unload_timeout` |
-| `get_model_load_status` | `()` → `{ is_loaded: bool, current_model: string \| null }` | lease-aware |
-| `unload_model_manually` | `()` → `Result<(), String>` | |
+| Command                    | Payload → Result                                            | Notes                                  |
+| -------------------------- | ----------------------------------------------------------- | -------------------------------------- |
+| `set_model_unload_timeout` | `{ timeout: ModelUnloadTimeout }` → `()`                    | writes `settings.model_unload_timeout` |
+| `get_model_load_status`    | `()` → `{ is_loaded: bool, current_model: string \| null }` | lease-aware                            |
+| `unload_model_manually`    | `()` → `Result<(), String>`                                 |                                        |
 
 Adjacent but wired directly into this manager:
 
-| Command | Effect here |
-| --- | --- |
-| `set_active_model` (`commands/models.rs (switch_active_model)`) | claims `try_start_loading` guard, persists `selected_model`, calls `load_model` (skipped + `selection_changed` event when timeout = Immediately); reverts the setting on load failure. Also used by the tray menu. |
-| `delete_model` | unloads first when deleting the active model |
-| `get_transcription_model_status` | `tm.get_current_model()` |
-| `is_model_loading` | **misnamed**: returns `current_model.is_none()`, not the `is_loading` flag |
-| `retry_history_entry_transcription` (`commands/history.rs`) | `initiate_model_load()` + blocking `tm.transcribe(samples)` from a saved WAV |
-| `shortcut::change_translate_to_english_setting`, `change_selected_language_setting`, `update_custom_words`, `change_word_correction_threshold_setting` | write the settings this subsystem reads per-run |
-| `shortcut::change_transcribe_accelerator_setting`, `change_ort_accelerator_setting`, `change_transcribe_gpu_device` | write + `tm.reload_model_on_next_use()` |
-| `shortcut::get_available_accelerators` | `transcription.rs (get_available_accelerators)` → `{ transcribe: ["auto","cpu","gpu"], ort: [...], gpu_devices: [{id, name, total_vram_mb}] }` (GPU list cached in a `OnceLock` at first call) |
-| `cancel_operation` | → `utils::cancel_current_operation` → `tm.cancel_stream()` |
+| Command                                                                                                                                                | Effect here                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `set_active_model` (`commands/models.rs (switch_active_model)`)                                                                                        | claims `try_start_loading` guard, persists `selected_model`, calls `load_model` (skipped + `selection_changed` event when timeout = Immediately); reverts the setting on load failure. Also used by the tray menu. |
+| `delete_model`                                                                                                                                         | unloads first when deleting the active model                                                                                                                                                                       |
+| `get_transcription_model_status`                                                                                                                       | `tm.get_current_model()`                                                                                                                                                                                           |
+| `is_model_loading`                                                                                                                                     | **misnamed**: returns `current_model.is_none()`, not the `is_loading` flag                                                                                                                                         |
+| `retry_history_entry_transcription` (`commands/history.rs`)                                                                                            | `initiate_model_load()` + blocking `tm.transcribe(samples)` from a saved WAV                                                                                                                                       |
+| `shortcut::change_translate_to_english_setting`, `change_selected_language_setting`, `update_custom_words`, `change_word_correction_threshold_setting` | write the settings this subsystem reads per-run                                                                                                                                                                    |
+| `shortcut::change_transcribe_accelerator_setting`, `change_ort_accelerator_setting`, `change_transcribe_gpu_device`                                    | write + `tm.reload_model_on_next_use()`                                                                                                                                                                            |
+| `shortcut::get_available_accelerators`                                                                                                                 | `transcription.rs (get_available_accelerators)` → `{ transcribe: ["auto","cpu","gpu"], ort: [...], gpu_devices: [{id, name, total_vram_mb}] }` (GPU list cached in a `OnceLock` at first call)                     |
+| `cancel_operation`                                                                                                                                     | → `utils::cancel_current_operation` → `tm.cancel_stream()`                                                                                                                                                         |
 
 ### Events (Rust → frontend)
 
-| Event name | Payload | Emitted from | Listeners |
-| --- | --- | --- | --- |
-| `model-state-changed` | `ModelStateEvent { event_type: "loading_started" \| "loading_completed" \| "loading_failed" \| "unloaded" \| "selection_changed", model_id?, model_name?, error? }` | `transcription.rs (load_model_with_device, unload_model, transcribe panic arm)`, `commands/models.rs (switch_active_model)` | `src/App.tsx` (toasts), `settingsStore.ts`, `modelStore.ts`, `ModelSelector.tsx`. Plain `app.emit` (string-typed, NOT in the specta registry). |
-| `stream-text-event` | `StreamTextEvent { committed: string, tentative: string }` | `transcription.rs (emit_stream_text)` on every commit/tentative change during feed | `RecordingOverlay.tsx` via typed `events.streamTextEvent` (tauri-specta, registered in `lib.rs (collect_events!)`) |
-| `stream-phase-event` | `StreamPhaseEvent { phase: "listening" \| "working", kind?: "transcribing" \| "polishing" }` | `transcription.rs (emit_stream_working)` called from `actions.rs` | `RecordingOverlay.tsx`. Rust only ever emits `working`; `listening` is the frontend's initial state. |
-| `transcription-error` | `String` (error text) | `actions.rs (TranscribeAction::stop)` on batch/finalize failure | `src/App.tsx` toast |
-| `recording-error` | `{ error_type: "microphone_permission_denied" \| "no_input_device" \| "unknown", detail? }` | `actions.rs (TranscribeAction::start)` | `src/App.tsx` |
-| `paste-error` | `()` | `actions.rs` | `src/App.tsx` |
-| `models-updated` | `()` | `model.rs (rescan_local_models)` etc. | `modelStore.ts` |
-| `model-download-progress` / `model-download-failed` | progress / `{model_id, error}` | `model.rs` / `commands/models.rs` | model UI (adjacent subsystem) |
-| `show-overlay` / `hide-overlay` / `mic-level` | overlay state string / `number[16]` | `overlay.rs` / recorder level callback | `RecordingOverlay.tsx` (adjacent) |
+| Event name                                          | Payload                                                                                                                                                             | Emitted from                                                                                                                | Listeners                                                                                                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model-state-changed`                               | `ModelStateEvent { event_type: "loading_started" \| "loading_completed" \| "loading_failed" \| "unloaded" \| "selection_changed", model_id?, model_name?, error? }` | `transcription.rs (load_model_with_device, unload_model, transcribe panic arm)`, `commands/models.rs (switch_active_model)` | `src/App.tsx` (toasts), `settingsStore.ts`, `modelStore.ts`, `ModelSelector.tsx`. Plain `app.emit` (string-typed, NOT in the specta registry). |
+| `stream-text-event`                                 | `StreamTextEvent { committed: string, tentative: string }`                                                                                                          | `transcription.rs (emit_stream_text)` on every commit/tentative change during feed                                          | `RecordingOverlay.tsx` via typed `events.streamTextEvent` (tauri-specta, registered in `lib.rs (collect_events!)`)                             |
+| `stream-phase-event`                                | `StreamPhaseEvent { phase: "listening" \| "working", kind?: "transcribing" \| "polishing" }`                                                                        | `transcription.rs (emit_stream_working)` called from `actions.rs`                                                           | `RecordingOverlay.tsx`. Rust only ever emits `working`; `listening` is the frontend's initial state.                                           |
+| `transcription-error`                               | `String` (error text)                                                                                                                                               | `actions.rs (TranscribeAction::stop)` on batch/finalize failure                                                             | `src/App.tsx` toast                                                                                                                            |
+| `recording-error`                                   | `{ error_type: "microphone_permission_denied" \| "no_input_device" \| "unknown", detail? }`                                                                         | `actions.rs (TranscribeAction::start)`                                                                                      | `src/App.tsx`                                                                                                                                  |
+| `paste-error`                                       | `()`                                                                                                                                                                | `actions.rs`                                                                                                                | `src/App.tsx`                                                                                                                                  |
+| `models-updated`                                    | `()`                                                                                                                                                                | `model.rs (rescan_local_models)` etc.                                                                                       | `modelStore.ts`                                                                                                                                |
+| `model-download-progress` / `model-download-failed` | progress / `{model_id, error}`                                                                                                                                      | `model.rs` / `commands/models.rs`                                                                                           | model UI (adjacent subsystem)                                                                                                                  |
+| `show-overlay` / `hide-overlay` / `mic-level`       | overlay state string / `number[16]`                                                                                                                                 | `overlay.rs` / recorder level callback                                                                                      | `RecordingOverlay.tsx` (adjacent)                                                                                                              |
 
 ## Settings keys
 
@@ -378,7 +371,7 @@ All live in the single `"settings"` object of `settings_store.json`
 
 - `selected_model` — id loaded by `initiate_model_load`; written by
   `switch_active_model`.
-- `selected_language` — persisted *intent* (`"auto"` or a code); coerced per-model
+- `selected_language` — persisted _intent_ (`"auto"` or a code); coerced per-model
   at run time by `effective_language`, never written back.
 - `translate_to_english` — gates `Task::Translate` (transcribe-cpp) /
   `translate: true` (Canary).
@@ -421,7 +414,7 @@ All live in the single `"settings"` object of `settings_store.json`
 - **Streaming feed errors are swallowed**: `stream.feed` failures are `warn!`
   only; the live text just stops updating while recording continues. If
   `finalize` then also fails, the reply is `None` and the batch fallback saves
-  the text — but a *timeout* (30 s) surfaces an error with NO fallback, losing
+  the text — but a _timeout_ (30 s) surfaces an error with NO fallback, losing
   the take's text (the WAV is still saved to history for retry).
 - **Batch fallback doubles work**: any streaming session that yields `None`/empty
   re-transcribes the entire recording from scratch — correct but potentially a

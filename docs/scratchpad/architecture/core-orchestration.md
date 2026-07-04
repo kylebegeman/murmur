@@ -29,17 +29,17 @@ This subsystem is the heart of the app. It:
 
 ## Key Files
 
-| File | Role |
-|---|---|
-| `src-tauri/src/main.rs` | Binary entry point. Parses `CliArgs` with clap, sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` on Linux, calls `handy_app_lib::run(cli_args)`. |
-| `src-tauri/src/lib.rs` | The whole app assembly: plugin stack, logging targets, specta command/event registration, `setup` closure, window lifecycle, tray, run-event teardown, headless path. |
-| `src-tauri/src/transcription_coordinator.rs` | `TranscriptionCoordinator` — single-threaded state machine (`Idle` / `Recording(binding_id)` / `Processing`) fed by an mpsc channel. |
-| `src-tauri/src/actions.rs` | `ShortcutAction` trait + `TranscribeAction` (the full record→transcribe→paste pipeline), `CancelAction`, `TestAction`, `ACTION_MAP`, LLM post-processing, OpenCC conversion, `FinishGuard`. |
-| `src-tauri/src/signal_handle.rs` | Unix SIGUSR1/SIGUSR2 handler thread + `send_transcription_input` helper used by signals and CLI forwarding. |
-| `src-tauri/src/cli.rs` | `CliArgs` clap struct (all flags below). |
-| `src-tauri/src/utils.rs` | `cancel_current_operation` (centralized cancel) + Linux display-server helpers; re-exports `clipboard::*`, `overlay::*`, `tray::*`. |
-| `src-tauri/src/commands/mod.rs` | Generic app commands: `cancel_operation`, `initialize_enigo`, `initialize_shortcuts`, settings/log/dir commands. |
-| `src-tauri/src/shortcut/handler.rs` | (adjacent subsystem, but the funnel) `handle_shortcut_event` — routes transcribe bindings into the coordinator, cancel/test bindings straight to `ACTION_MAP`. |
+| File                                         | Role                                                                                                                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src-tauri/src/main.rs`                      | Binary entry point. Parses `CliArgs` with clap, sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` on Linux, calls `handy_app_lib::run(cli_args)`.                                                     |
+| `src-tauri/src/lib.rs`                       | The whole app assembly: plugin stack, logging targets, specta command/event registration, `setup` closure, window lifecycle, tray, run-event teardown, headless path.                       |
+| `src-tauri/src/transcription_coordinator.rs` | `TranscriptionCoordinator` — single-threaded state machine (`Idle` / `Recording(binding_id)` / `Processing`) fed by an mpsc channel.                                                        |
+| `src-tauri/src/actions.rs`                   | `ShortcutAction` trait + `TranscribeAction` (the full record→transcribe→paste pipeline), `CancelAction`, `TestAction`, `ACTION_MAP`, LLM post-processing, OpenCC conversion, `FinishGuard`. |
+| `src-tauri/src/signal_handle.rs`             | Unix SIGUSR1/SIGUSR2 handler thread + `send_transcription_input` helper used by signals and CLI forwarding.                                                                                 |
+| `src-tauri/src/cli.rs`                       | `CliArgs` clap struct (all flags below).                                                                                                                                                    |
+| `src-tauri/src/utils.rs`                     | `cancel_current_operation` (centralized cancel) + Linux display-server helpers; re-exports `clipboard::*`, `overlay::*`, `tray::*`.                                                         |
+| `src-tauri/src/commands/mod.rs`              | Generic app commands: `cancel_operation`, `initialize_enigo`, `initialize_shortcuts`, settings/log/dir commands.                                                                            |
+| `src-tauri/src/shortcut/handler.rs`          | (adjacent subsystem, but the funnel) `handle_shortcut_event` — routes transcribe bindings into the coordinator, cancel/test bindings straight to `ACTION_MAP`.                              |
 
 ## Key Types & Functions
 
@@ -56,13 +56,13 @@ This subsystem is the heart of the app. It:
   `new`, `send_input`, `notify_cancel`, `notify_processing_finished`.
 - `src-tauri/src/transcription_coordinator.rs (Command, Stage, start, stop)` — internal
   state machine (detailed below). `is_transcribe_binding(id)` = `"transcribe" |
-  "transcribe_with_post_process"`.
+"transcribe_with_post_process"`.
 - `src-tauri/src/actions.rs (ShortcutAction)` — trait `{ start(app, binding_id,
-  shortcut_str), stop(...) }`, `Send + Sync`.
+shortcut_str), stop(...) }`, `Send + Sync`.
 - `src-tauri/src/actions.rs (TranscribeAction)` — `{ post_process: bool }`; `impl
-  ShortcutAction`, the core pipeline.
+ShortcutAction`, the core pipeline.
 - `src-tauri/src/actions.rs (ACTION_MAP)` — `Lazy<HashMap<String, Arc<dyn
-  ShortcutAction>>>` with keys `"transcribe"`, `"transcribe_with_post_process"`,
+ShortcutAction>>>` with keys `"transcribe"`, `"transcribe_with_post_process"`,
   `"cancel"`, `"test"`.
 - `src-tauri/src/actions.rs (FinishGuard)` — drop guard created at the top of the async
   stop pipeline; on drop (normal completion or panic) calls
@@ -70,7 +70,7 @@ This subsystem is the heart of the app. It:
   returns to `Idle`.
 - `src-tauri/src/actions.rs (process_transcription_output)` — OpenCC conversion + LLM
   post-processing; returns `ProcessedTranscription { final_text, post_processed_text,
-  post_process_prompt }`.
+post_process_prompt }`.
 - `src-tauri/src/actions.rs (post_process_transcription)` — resolves provider/model/
   prompt from settings, calls `llm_client` (structured-output JSON schema first, legacy
   `${output}` prompt fallback) or `apple_intelligence` natively on macOS aarch64.
@@ -80,7 +80,7 @@ This subsystem is the heart of the app. It:
 - `src-tauri/src/utils.rs (cancel_current_operation)` — the one true cancel.
 - `src-tauri/src/signal_handle.rs (setup_signal_handler, send_transcription_input)`.
 - `src-tauri/src/commands/mod.rs (initialize_enigo, initialize_shortcuts,
-  ShortcutsInitialized)` — deferred, frontend-driven initialization (see macOS notes).
+ShortcutsInitialized)` — deferred, frontend-driven initialization (see macOS notes).
 
 ---
 
@@ -95,12 +95,12 @@ This subsystem is the heart of the app. It:
    exports `src/bindings.ts` (the frontend's typed client).
 5. `headless_mode = transcribe_file.is_some() || list_devices || list_models`.
 6. Plugin stack: dialog, log (3 targets: console stdout/stderr, rotating file
-   `handy.log`, webview `log://log`), nspanel (macOS only), single-instance (skipped in
+   `murmur.log`, webview `log://log`), nspanel (macOS only), single-instance (skipped in
    headless mode), fs, process, updater, os, clipboard-manager, macos-permissions,
    opener, store, global-shortcut, autostart. `CliArgs` is put into managed state.
 7. **Single-instance forwarding** (`lib.rs`, closure in `run`): a second invocation with
    `--toggle-transcription` → `signal_handle::send_transcription_input(app,
-   "transcribe", "CLI")`; `--toggle-post-process` → same with
+"transcribe", "CLI")`; `--toggle-post-process` → same with
    `"transcribe_with_post_process"`; `--cancel` → `utils::cancel_current_operation`;
    anything else → `show_main_window`.
 8. `setup` closure:
@@ -148,12 +148,12 @@ This subsystem is the heart of the app. It:
 
 ### Trigger sources (all converge on the coordinator)
 
-| Source | Path |
-|---|---|
-| Global hotkey (Tauri or handy-keys impl) | `shortcut/tauri_impl.rs` / `shortcut/handy_keys.rs` → `shortcut/handler.rs (handle_shortcut_event)` → `TranscriptionCoordinator::send_input(binding_id, hotkey, is_pressed, settings.push_to_talk)` |
-| Unix signal SIGUSR2 / SIGUSR1 | `signal_handle.rs (setup_signal_handler)` thread → `send_transcription_input` → `send_input(id, "SIGUSR1/2", true, false)` (toggle semantics) |
-| CLI on a second instance (`--toggle-transcription`, `--toggle-post-process`) | single-instance plugin closure in `lib.rs (run)` → `send_transcription_input(..., "CLI")` |
-| Cancel: hotkey / tray "cancel" / overlay button / CLI `--cancel` | all → `utils::cancel_current_operation` (the cancel hotkey goes via `handler.rs`, which only fires it while `AudioRecordingManager::is_recording()` and on press) |
+| Source                                                                       | Path                                                                                                                                                                                                |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Global hotkey (Tauri or handy-keys impl)                                     | `shortcut/tauri_impl.rs` / `shortcut/handy_keys.rs` → `shortcut/handler.rs (handle_shortcut_event)` → `TranscriptionCoordinator::send_input(binding_id, hotkey, is_pressed, settings.push_to_talk)` |
+| Unix signal SIGUSR2 / SIGUSR1                                                | `signal_handle.rs (setup_signal_handler)` thread → `send_transcription_input` → `send_input(id, "SIGUSR1/2", true, false)` (toggle semantics)                                                       |
+| CLI on a second instance (`--toggle-transcription`, `--toggle-post-process`) | single-instance plugin closure in `lib.rs (run)` → `send_transcription_input(..., "CLI")`                                                                                                           |
+| Cancel: hotkey / tray "cancel" / overlay button / CLI `--cancel`             | all → `utils::cancel_current_operation` (the cancel hotkey goes via `handler.rs`, which only fires it while `AudioRecordingManager::is_recording()` and on press)                                   |
 
 ### Coordinator state machine (`transcription_coordinator.rs`)
 
@@ -164,15 +164,17 @@ consuming `Command` values from an `mpsc::channel`. The whole loop is wrapped in
 States (`Stage`): `Idle`, `Recording(binding_id)`, `Processing`.
 
 Commands:
+
 - `Command::Input { binding_id, hotkey_string, is_pressed, push_to_talk }`
 - `Command::Cancel { recording_was_active }`
 - `Command::ProcessingFinished`
 
 Transition rules:
+
 - **Debounce**: presses within 30 ms (`DEBOUNCE`) of the previous press are dropped
   (key-repeat / double-tap guard). Releases always pass through.
 - **Push-to-talk** (`push_to_talk == true`): press while `Idle` → `start`; release while
-  `Recording(id)` *for the same binding* → `stop`. Releases of other bindings and
+  `Recording(id)` _for the same binding_ → `stop`. Releases of other bindings and
   presses while busy are ignored.
 - **Toggle mode** (press-only): `Idle` → `start`; `Recording(same id)` → `stop`;
   `Recording(other id)` or `Processing` → ignored ("pipeline busy"). Signals/CLI always
@@ -213,11 +215,11 @@ Transition rules:
      (mic stream warm-up), plays the start sound, applies mute
      (`mute_while_recording`).
 6. On success: `shortcut::register_cancel_shortcut(app)` — the cancel hotkey is only
-   registered *while recording* (spawned async; no-op on Linux).
+   registered _while recording_ (spawned async; no-op on Linux).
 7. On failure: reverts everything (`TranscriptionManager::cancel_stream`,
    `utils::hide_recording_overlay`, tray → `Idle`) and emits **`recording-error`** to
    the frontend with `{ error_type: "microphone_permission_denied" | "no_input_device"
-   | "unknown", detail }` (classified by
+| "unknown", detail }` (classified by
    `audio_toolkit::{is_microphone_access_denied, is_no_input_device_error}`). The
    frontend (`src/App.tsx`) shows a localized toast. Because recording never started,
    the coordinator's post-start check keeps the stage `Idle`.
@@ -225,6 +227,7 @@ Transition rules:
 ### `TranscribeAction::stop` (`actions.rs`) — coordinator thread + async task
 
 Synchronous part (still on the coordinator thread):
+
 1. `shortcut::unregister_cancel_shortcut(app)`.
 2. Tray → `Transcribing`. Overlay: if `overlay_style == Live` and
    `TranscriptionManager::is_streaming()`, emit stream phase
@@ -236,53 +239,36 @@ Synchronous part (still on the coordinator thread):
 5. `tauri::async_runtime::spawn` the pipeline. First statement inside:
    `let _guard = FinishGuard(app)`.
 
-Async pipeline:
-6. `rm.stop_recording(binding_id, cancel_generation)` — blocks for
-   `extra_recording_buffer_ms` (checking cancellation every ≤25 ms), stops the recorder,
-   closes/lazy-closes the mic in on-demand mode, returns `None` if cancelled, pads
-   sub-1s clips to 1.25 s. **Note: this blocking sleep runs on a tokio worker thread.**
-7. `None` (not recording / cancelled inside stop) or cancelled-since → `cancel_stream()`
-   (so the streaming worker channel doesn't leak and block the next `start_stream`),
-   hide overlay, tray `Idle`, return. **Silent: no user feedback.**
-8. Empty samples → same silent reset.
-9. Otherwise: spawn_blocking `audio_toolkit::save_wav_file` of
-   `recordings/handy-<unix_ts>.wav` concurrently with transcription.
-10. Transcription: `TranscriptionManager::finalize_stream()` first —
-    `Ok(Some(text))` non-empty wins; `Ok(None)`/empty falls back to batch
-    `tm.transcribe(samples)`; `Err` (finalize timeout — worker may still hold the
-    engine) is surfaced as the transcription error rather than risking contention.
-11. Await WAV save, then `audio_toolkit::verify_wav_file`; failures logged, `wav_saved
-    = false` (history entry then skipped, audio lost).
-12. Cancellation check → silent reset if cancelled.
-13. On transcription `Ok`:
-    - If `post_process`: overlay → `StreamWorkKind::Polishing` (Live) or
-      `show_processing_overlay` (`"processing"`).
-    - `process_transcription_output(app, &transcription, post_process)`:
-      1. `resolve_effective_language` + `maybe_convert_chinese_variant` (OpenCC
-         Tw2sp/S2tw only when the *effective* language is zh-Hans/zh-Hant).
-      2. If post-processing: `post_process_transcription` — skips silently (debug log
-         only) when transcription is blank, no provider, no model, no/empty prompt.
-         Providers: Apple Intelligence (native Swift call, macOS aarch64 only) or
-         OpenAI-compatible HTTP via `llm_client` (structured-output JSON schema
-         `{transcription: string}` first; on failure falls back to legacy `${output}`
-         prompt substitution; on any error returns `None` ⇒ raw transcription is used,
-         **user is never told post-processing failed**). Reasoning is disabled for
-         `custom` and `openrouter` providers. `strip_invisible_chars` removes
-         zero-width characters LLMs sometimes emit.
-    - Cancellation check → silent reset.
-    - If `wav_saved`: `HistoryManager::save_entry(file_name, transcription,
+Async pipeline: 6. `rm.stop_recording(binding_id, cancel_generation)` — blocks for
+`extra_recording_buffer_ms` (checking cancellation every ≤25 ms), stops the recorder,
+closes/lazy-closes the mic in on-demand mode, returns `None` if cancelled, pads
+sub-1s clips to 1.25 s. **Note: this blocking sleep runs on a tokio worker thread.** 7. `None` (not recording / cancelled inside stop) or cancelled-since → `cancel_stream()`
+(so the streaming worker channel doesn't leak and block the next `start_stream`),
+hide overlay, tray `Idle`, return. **Silent: no user feedback.** 8. Empty samples → same silent reset. 9. Otherwise: spawn*blocking `audio_toolkit::save_wav_file` of
+`recordings/murmur-<unix_ts>.wav` concurrently with transcription. 10. Transcription: `TranscriptionManager::finalize_stream()` first —
+`Ok(Some(text))` non-empty wins; `Ok(None)`/empty falls back to batch
+`tm.transcribe(samples)`; `Err` (finalize timeout — worker may still hold the
+engine) is surfaced as the transcription error rather than risking contention. 11. Await WAV save, then `audio_toolkit::verify_wav_file`; failures logged, `wav_saved
+    = false` (history entry then skipped, audio lost). 12. Cancellation check → silent reset if cancelled. 13. On transcription `Ok`: - If `post_process`: overlay → `StreamWorkKind::Polishing` (Live) or
+`show_processing_overlay` (`"processing"`). - `process_transcription_output(app, &transcription, post_process)`: 1. `resolve_effective_language` + `maybe_convert_chinese_variant` (OpenCC
+Tw2sp/S2tw only when the \_effective* language is zh-Hans/zh-Hant). 2. If post-processing: `post_process_transcription` — skips silently (debug log
+only) when transcription is blank, no provider, no model, no/empty prompt.
+Providers: Apple Intelligence (native Swift call, macOS aarch64 only) or
+OpenAI-compatible HTTP via `llm_client` (structured-output JSON schema
+`{transcription: string}` first; on failure falls back to legacy `${output}`
+prompt substitution; on any error returns `None` ⇒ raw transcription is used,
+**user is never told post-processing failed**). Reasoning is disabled for
+`custom` and `openrouter` providers. `strip_invisible_chars` removes
+zero-width characters LLMs sometimes emit. - Cancellation check → silent reset. - If `wav_saved`: `HistoryManager::save_entry(file_name, transcription,
       post_process, post_processed_text, post_process_prompt)` (emits typed
-      `HistoryUpdatePayload` event; save errors only logged).
-    - If `final_text` empty → reset UI silently. Otherwise
-      `app.run_on_main_thread`: last cancellation check, then
-      `utils::paste(final_text, app)` (`clipboard.rs (paste)` — Enigo typing or
-      clipboard+Cmd/Ctrl-V per `paste_method`, honors `append_trailing_space`,
-      `auto_submit`, `clipboard_handling`). Paste failure → `error!` +
-      emit **`paste-error`** (frontend toast). Then hide overlay, tray `Idle`.
-14. On transcription `Err`: emit **`transcription-error`** (payload = error string,
-    frontend toast) and, if `wav_saved`, save a history entry with empty text so the
-    user can retry from History (`commands/history.rs (retry_history_entry_transcription)`).
-15. `FinishGuard` drops → coordinator `Processing` → `Idle`.
+`HistoryUpdatePayload` event; save errors only logged). - If `final_text` empty → reset UI silently. Otherwise
+`app.run_on_main_thread`: last cancellation check, then
+`utils::paste(final_text, app)` (`clipboard.rs (paste)` — Enigo typing or
+clipboard+Cmd/Ctrl-V per `paste_method`, honors `append_trailing_space`,
+`auto_submit`, `clipboard_handling`). Paste failure → `error!` +
+emit **`paste-error`** (frontend toast). Then hide overlay, tray `Idle`. 14. On transcription `Err`: emit **`transcription-error`** (payload = error string,
+frontend toast) and, if `wav_saved`, save a history entry with empty text so the
+user can retry from History (`commands/history.rs (retry_history_entry_transcription)`). 15. `FinishGuard` drops → coordinator `Processing` → `Idle`.
 
 ### Cancellation (`utils.rs (cancel_current_operation)`)
 
@@ -327,28 +313,28 @@ history subsystems.
 
 ### Commands (frontend → Rust)
 
-| Command | File | Signature / behavior |
-|---|---|---|
-| `trigger_update_check` | `lib.rs` | No-op unless `update_checks_enabled`; re-emits `check-for-updates`. |
-| `show_main_window_command` | `lib.rs` | Shows/focuses main window (macOS: activation policy `Regular`). Called by `src/App.tsx (revealMainWindowForPermissions)`. |
-| `cancel_operation` | `commands/mod.rs` | → `cancel_current_operation`. Called by the overlay cancel button (`src/overlay/RecordingOverlay.tsx`). |
-| `initialize_enigo` | `commands/mod.rs` | Lazily creates `input::EnigoState` and `app.manage`s it; errors with a string (macOS: accessibility not granted). Idempotent. |
-| `initialize_shortcuts` | `commands/mod.rs` | Calls `shortcut::init_shortcuts`; guarded by `ShortcutsInitialized` marker state. Idempotent. |
-| `is_portable`, `get_app_dir_path`, `get_app_settings`, `get_default_settings`, `get_log_dir_path`, `set_log_level`, `open_recordings_folder`, `open_log_dir`, `open_app_data_dir`, `check_apple_intelligence_available` | `commands/mod.rs` | Utility/settings commands. `set_log_level` writes `settings.log_level` **and** the `FILE_LOG_LEVEL` atomic. |
+| Command                                                                                                                                                                                                                 | File              | Signature / behavior                                                                                                          |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `trigger_update_check`                                                                                                                                                                                                  | `lib.rs`          | No-op unless `update_checks_enabled`; re-emits `check-for-updates`.                                                           |
+| `show_main_window_command`                                                                                                                                                                                              | `lib.rs`          | Shows/focuses main window (macOS: activation policy `Regular`). Called by `src/App.tsx (revealMainWindowForPermissions)`.     |
+| `cancel_operation`                                                                                                                                                                                                      | `commands/mod.rs` | → `cancel_current_operation`. Called by the overlay cancel button (`src/overlay/RecordingOverlay.tsx`).                       |
+| `initialize_enigo`                                                                                                                                                                                                      | `commands/mod.rs` | Lazily creates `input::EnigoState` and `app.manage`s it; errors with a string (macOS: accessibility not granted). Idempotent. |
+| `initialize_shortcuts`                                                                                                                                                                                                  | `commands/mod.rs` | Calls `shortcut::init_shortcuts`; guarded by `ShortcutsInitialized` marker state. Idempotent.                                 |
+| `is_portable`, `get_app_dir_path`, `get_app_settings`, `get_default_settings`, `get_log_dir_path`, `set_log_level`, `open_recordings_folder`, `open_log_dir`, `open_app_data_dir`, `check_apple_intelligence_available` | `commands/mod.rs` | Utility/settings commands. `set_log_level` writes `settings.log_level` **and** the `FILE_LOG_LEVEL` atomic.                   |
 
 ### Events
 
-| Event | Direction | Emitted from | Payload | Frontend consumer |
-|---|---|---|---|---|
-| `recording-error` | Rust → frontend | `actions.rs (TranscribeAction::start)` | `{ error_type: "microphone_permission_denied" \| "no_input_device" \| "unknown", detail: string \| null }` | `src/App.tsx` toast |
-| `transcription-error` | Rust → frontend | `actions.rs (TranscribeAction::stop)` | error message `string` | `src/App.tsx` toast |
-| `paste-error` | Rust → frontend | `actions.rs (TranscribeAction::stop)` | `()` | `src/App.tsx` toast |
-| `check-for-updates` | Rust → frontend | `lib.rs` (tray `check_updates`, `trigger_update_check`) | `()` | `src/components/update-checker/UpdateChecker.tsx` |
-| `show-overlay` | Rust → overlay window | `overlay.rs (show_overlay_state)` (called from actions) | `"recording" \| "streaming" \| "transcribing" \| "processing"` | `src/overlay/RecordingOverlay.tsx` |
-| `hide-overlay` | Rust → overlay window | `overlay.rs (hide_recording_overlay)` | `()` | overlay |
-| `model-state-changed` | Rust → Rust **and** frontend | emitted by `managers/transcription.rs` (other subsystem) | `ModelStateEvent { event_type, model_name?, error? }` | `lib.rs (initialize_core_logic)` **listens** to refresh the tray menu; `src/App.tsx`, stores |
-| `StreamTextEvent`, `StreamPhaseEvent`, `HistoryUpdatePayload` | Rust → frontend (typed specta events, mounted in `lib.rs`) | transcription/history managers; `actions.rs` triggers `StreamPhaseEvent` via `tm.emit_stream_working` | see `managers/transcription.rs`, `managers/history.rs` | overlay + history UI |
-| `log://log` | Rust → frontend | tauri-plugin-log webview target | log record | debug panel live log viewer (only while `WEBVIEW_LOG_STREAMING` is true, i.e. debug mode) |
+| Event                                                         | Direction                                                  | Emitted from                                                                                          | Payload                                                                                                    | Frontend consumer                                                                            |
+| ------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `recording-error`                                             | Rust → frontend                                            | `actions.rs (TranscribeAction::start)`                                                                | `{ error_type: "microphone_permission_denied" \| "no_input_device" \| "unknown", detail: string \| null }` | `src/App.tsx` toast                                                                          |
+| `transcription-error`                                         | Rust → frontend                                            | `actions.rs (TranscribeAction::stop)`                                                                 | error message `string`                                                                                     | `src/App.tsx` toast                                                                          |
+| `paste-error`                                                 | Rust → frontend                                            | `actions.rs (TranscribeAction::stop)`                                                                 | `()`                                                                                                       | `src/App.tsx` toast                                                                          |
+| `check-for-updates`                                           | Rust → frontend                                            | `lib.rs` (tray `check_updates`, `trigger_update_check`)                                               | `()`                                                                                                       | `src/components/update-checker/UpdateChecker.tsx`                                            |
+| `show-overlay`                                                | Rust → overlay window                                      | `overlay.rs (show_overlay_state)` (called from actions)                                               | `"recording" \| "streaming" \| "transcribing" \| "processing"`                                             | `src/overlay/RecordingOverlay.tsx`                                                           |
+| `hide-overlay`                                                | Rust → overlay window                                      | `overlay.rs (hide_recording_overlay)`                                                                 | `()`                                                                                                       | overlay                                                                                      |
+| `model-state-changed`                                         | Rust → Rust **and** frontend                               | emitted by `managers/transcription.rs` (other subsystem)                                              | `ModelStateEvent { event_type, model_name?, error? }`                                                      | `lib.rs (initialize_core_logic)` **listens** to refresh the tray menu; `src/App.tsx`, stores |
+| `StreamTextEvent`, `StreamPhaseEvent`, `HistoryUpdatePayload` | Rust → frontend (typed specta events, mounted in `lib.rs`) | transcription/history managers; `actions.rs` triggers `StreamPhaseEvent` via `tm.emit_stream_working` | see `managers/transcription.rs`, `managers/history.rs`                                                     | overlay + history UI                                                                         |
+| `log://log`                                                   | Rust → frontend                                            | tauri-plugin-log webview target                                                                       | log record                                                                                                 | debug panel live log viewer (only while `WEBVIEW_LOG_STREAMING` is true, i.e. debug mode)    |
 
 (Other events named in `lib.rs`'s registered commands — `settings-changed`,
 `models-updated`, `model-download-*`, `handy-keys-event`, `mic-level` — belong to the
@@ -403,6 +389,7 @@ Written: `log_level` (`commands/mod.rs (set_log_level)`). `--debug` overrides
 ## Platform-Specific Behavior
 
 ### macOS
+
 - Activation-policy dance: `Accessory` when hidden-to-tray (startup with
   `start_hidden && show_tray_icon`; on window close when tray visible), `Regular`
   when showing (`lib.rs (show_main_window)`). Without the tray, the dock icon is kept
@@ -418,6 +405,7 @@ Written: `log_level` (`commands/mod.rs (set_log_level)`). `--debug` overrides
   SIGABRT.
 
 ### Linux
+
 - `main.rs`: `WEBKIT_DISABLE_DMABUF_RENDERER=1` (GPU crash workaround).
 - Cancel shortcut dynamic registration is disabled entirely
   (`shortcut/tauri_impl.rs (register_cancel_shortcut)`) — cancel is only reachable via
@@ -426,11 +414,13 @@ Written: `log_level` (`commands/mod.rs (set_log_level)`). `--debug` overrides
   clipboard/typing-tool selection).
 
 ### Windows
+
 - `should_force_show_permissions_window` (`lib.rs`): forces the main window visible when
   models are installed but mic permission is denied.
 - `main.rs`: `windows_subsystem = "windows"` in release (no console).
 
 ### Unix (macOS + Linux)
+
 - SIGUSR2 toggles `transcribe`, SIGUSR1 toggles `transcribe_with_post_process`
   (`signal_handle.rs`) — scripting hook equivalent to the CLI toggles.
 
@@ -483,7 +473,7 @@ Written: `log_level` (`commands/mod.rs (set_log_level)`). `--debug` overrides
     fast intentional press-release (tap-to-talk under 30 ms) is dropped for presses;
     fine in practice but hardcoded.
 13. **Sub-second recordings are zero-padded to 1.25 s** (`managers/audio.rs
-    (stop_recording)`) — surprising if you're mapping timing behavior.
+(stop_recording)`) — surprising if you're mapping timing behavior.
 14. **Single-instance vs. headless**: the CLI toggles only work when an instance is
     already running (they're forwarded), while headless flags always spawn a fresh
     instance; mixing flags across those two groups behaves non-obviously.
@@ -492,8 +482,8 @@ Written: `log_level` (`commands/mod.rs (set_log_level)`). `--debug` overrides
 
 ## Cross-Links (adjacent subsystems, not mapped here)
 
-- **Shortcut capture**: `src-tauri/src/shortcut/` (tauri_impl / handy_keys backends,
-  `handler.rs` funnel, all `change_*_setting` commands live in `shortcut/mod.rs`).
+- **Shortcut capture**: `src-tauri/src/shortcut/` (tauri*impl / handy_keys backends,
+  `handler.rs` funnel, all `change*\*\_setting`commands live in`shortcut/mod.rs`).
 - **Audio capture & VAD**: `src-tauri/src/managers/audio.rs`,
   `src-tauri/src/audio_toolkit/` (recorder, resampler, VAD, WAV IO, mic levels).
 - **Transcription engines & streaming**: `src-tauri/src/managers/transcription.rs`

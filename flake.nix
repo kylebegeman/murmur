@@ -1,5 +1,5 @@
 {
-  description = "Handy - A free, open source, and extensible speech-to-text application that works completely offline";
+  description = "Murmur - A free, open source, and extensible speech-to-text application that works completely offline";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -174,7 +174,7 @@
 
             meta = {
               description = "A free, open source, and extensible speech-to-text application that works completely offline";
-              homepage = "https://github.com/cjpais/Handy";
+              homepage = "https://github.com/kylebegeman/murmur";
               license = lib.licenses.mit;
               mainProgram = "handy";
               platforms = supportedSystems;

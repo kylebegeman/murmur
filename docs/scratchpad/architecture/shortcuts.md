@@ -21,24 +21,24 @@ post-processing, or cancel an in-flight recording. The subsystem:
 
 ## Key Files and Roles
 
-| File | Role |
-|---|---|
-| `src-tauri/src/shortcut/mod.rs` | Backend dispatcher + all binding-management Tauri commands (`change_binding`, `reset_binding`, `suspend_binding`, `resume_binding`, implementation switching). Also hosts ~50 unrelated general-settings commands (see Gotchas). |
-| `src-tauri/src/shortcut/handler.rs` | Shared press/release event handler used by both backends: `handle_shortcut_event`. |
-| `src-tauri/src/shortcut/tauri_impl.rs` | Backend A: `tauri-plugin-global-shortcut` registration/validation. |
-| `src-tauri/src/shortcut/handy_keys.rs` | Backend B: `handy-keys` crate; dedicated manager thread owning `HotkeyManager`; recording mode for UI key capture; `start/stop_handy_keys_recording` commands. |
-| `src-tauri/src/commands/mod.rs` | `initialize_shortcuts` command — the actual entry point that registers shortcuts (deferred until frontend calls it). Marker state `ShortcutsInitialized`. |
-| `src-tauri/src/actions.rs` | `ShortcutAction` trait, `ACTION_MAP` (binding id → action), `TranscribeAction`, `CancelAction`, `TestAction`. |
-| `src-tauri/src/transcription_coordinator.rs` | Toggle vs PTT state machine (`Stage::Idle/Recording/Processing`), 30 ms press debounce, `is_transcribe_binding`. (Other subsystem, interface only.) |
-| `src-tauri/src/settings.rs` | `ShortcutBinding` struct, `KeyboardImplementation` enum + platform default, default bindings in `get_default_settings`, binding merge on load, `get_bindings` / `get_stored_binding`. |
-| `src-tauri/src/signal_handle.rs` | SIGUSR1/SIGUSR2 → coordinator as toggle inputs; alternate non-keyboard trigger path. |
-| `src/components/settings/ShortcutInput.tsx` | Wrapper choosing the capture UI per `keyboard_implementation`. |
-| `src/components/settings/GlobalShortcutInput.tsx` | Tauri-backend rebinding UI (JS `keydown`/`keyup` in the settings window). |
-| `src/components/settings/HandyKeysShortcutInput.tsx` | handy-keys rebinding UI (backend-streamed key events via `handy-keys-event`). |
-| `src/components/settings/debug/KeyboardImplementationSelector.tsx` | Debug-settings dropdown to switch backends at runtime. |
-| `src/stores/settingsStore.ts` | `updateBinding` (optimistic update + rollback, calls `changeBinding`), `resetBinding`. |
-| `src/lib/utils/keyboard.ts` | `getKeyName`, `normalizeKey`, `formatKeyCombination` — JS key naming and display formatting. |
-| `src/App.tsx`, `src/components/onboarding/AccessibilityOnboarding.tsx` | Callers of `initializeShortcuts()` (post-onboarding / after macOS accessibility grant). |
+| File                                                                   | Role                                                                                                                                                                                                                             |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src-tauri/src/shortcut/mod.rs`                                        | Backend dispatcher + all binding-management Tauri commands (`change_binding`, `reset_binding`, `suspend_binding`, `resume_binding`, implementation switching). Also hosts ~50 unrelated general-settings commands (see Gotchas). |
+| `src-tauri/src/shortcut/handler.rs`                                    | Shared press/release event handler used by both backends: `handle_shortcut_event`.                                                                                                                                               |
+| `src-tauri/src/shortcut/tauri_impl.rs`                                 | Backend A: `tauri-plugin-global-shortcut` registration/validation.                                                                                                                                                               |
+| `src-tauri/src/shortcut/handy_keys.rs`                                 | Backend B: `handy-keys` crate; dedicated manager thread owning `HotkeyManager`; recording mode for UI key capture; `start/stop_handy_keys_recording` commands.                                                                   |
+| `src-tauri/src/commands/mod.rs`                                        | `initialize_shortcuts` command — the actual entry point that registers shortcuts (deferred until frontend calls it). Marker state `ShortcutsInitialized`.                                                                        |
+| `src-tauri/src/actions.rs`                                             | `ShortcutAction` trait, `ACTION_MAP` (binding id → action), `TranscribeAction`, `CancelAction`, `TestAction`.                                                                                                                    |
+| `src-tauri/src/transcription_coordinator.rs`                           | Toggle vs PTT state machine (`Stage::Idle/Recording/Processing`), 30 ms press debounce, `is_transcribe_binding`. (Other subsystem, interface only.)                                                                              |
+| `src-tauri/src/settings.rs`                                            | `ShortcutBinding` struct, `KeyboardImplementation` enum + platform default, default bindings in `get_default_settings`, binding merge on load, `get_bindings` / `get_stored_binding`.                                            |
+| `src-tauri/src/signal_handle.rs`                                       | SIGUSR1/SIGUSR2 → coordinator as toggle inputs; alternate non-keyboard trigger path.                                                                                                                                             |
+| `src/components/settings/ShortcutInput.tsx`                            | Wrapper choosing the capture UI per `keyboard_implementation`.                                                                                                                                                                   |
+| `src/components/settings/GlobalShortcutInput.tsx`                      | Tauri-backend rebinding UI (JS `keydown`/`keyup` in the settings window).                                                                                                                                                        |
+| `src/components/settings/HandyKeysShortcutInput.tsx`                   | handy-keys rebinding UI (backend-streamed key events via `handy-keys-event`).                                                                                                                                                    |
+| `src/components/settings/debug/KeyboardImplementationSelector.tsx`     | Debug-settings dropdown to switch backends at runtime.                                                                                                                                                                           |
+| `src/stores/settingsStore.ts`                                          | `updateBinding` (optimistic update + rollback, calls `changeBinding`), `resetBinding`.                                                                                                                                           |
+| `src/lib/utils/keyboard.ts`                                            | `getKeyName`, `normalizeKey`, `formatKeyCombination` — JS key naming and display formatting.                                                                                                                                     |
+| `src/App.tsx`, `src/components/onboarding/AccessibilityOnboarding.tsx` | Callers of `initializeShortcuts()` (post-onboarding / after macOS accessibility grant).                                                                                                                                          |
 
 ## Core Types
 
@@ -59,11 +59,11 @@ post-processing, or cancel an in-flight recording. The subsystem:
 
 Defined in `src-tauri/src/settings.rs (get_default_settings)`:
 
-| id | macOS | Windows/Linux | Notes |
-|---|---|---|---|
-| `transcribe` | `option+space` | `ctrl+space` | Main dictation hotkey |
-| `transcribe_with_post_process` | `option+shift+space` | `ctrl+shift+space` | Registered only when `post_process_enabled` |
-| `cancel` | `escape` | `escape` | **Dynamically** registered only while recording; disabled entirely on Linux |
+| id                             | macOS                | Windows/Linux      | Notes                                                                       |
+| ------------------------------ | -------------------- | ------------------ | --------------------------------------------------------------------------- |
+| `transcribe`                   | `option+space`       | `ctrl+space`       | Main dictation hotkey                                                       |
+| `transcribe_with_post_process` | `option+shift+space` | `ctrl+shift+space` | Registered only when `post_process_enabled`                                 |
+| `cancel`                       | `escape`             | `escape`           | **Dynamically** registered only while recording; disabled entirely on Linux |
 
 On settings load, `load_or_create_app_settings` merges any missing default binding
 ids into the stored map, so new binding ids added in code appear for existing users.
@@ -111,7 +111,7 @@ Presses within 30 ms of the previous press are debounced (`DEBOUNCE`); releases 
   → `start()`; release while `Stage::Recording(id)` **for the same binding id** → `stop()`.
 - **Toggle** (`push_to_talk == false`): press while Idle → `start()`; press again
   while Recording the same id → `stop()`; presses while `Processing` or while a
-  *different* binding is recording are ignored ("pipeline busy"). Releases ignored.
+  _different_ binding is recording are ignored ("pipeline busy"). Releases ignored.
 - `start()` calls `ACTION_MAP[binding_id].start(...)` and only transitions to
   `Recording` if the audio manager actually started; `stop()` calls `.stop(...)`
   and moves to `Processing` until `notify_processing_finished()` (fired by the
@@ -138,6 +138,7 @@ Common path: both UIs end in `settingsStore.ts (updateBinding)` → optimistic l
 update → `commands.changeBinding(id, binding)` → rollback + rethrow on failure.
 
 `src-tauri/src/shortcut/mod.rs (change_binding)`:
+
 1. Rejects empty strings (`Err`).
 2. Looks up the stored binding; if missing, clones from defaults (warns); unknown
    id in defaults → `Ok(BindingResponse{ success:false, error })`.
@@ -146,6 +147,7 @@ update → `commands.changeBinding(id, binding)` → rollback + rethrow on failu
    → persist**. See Fragile Points for the ordering hazard.
 
 Validation differs per backend:
+
 - `tauri_impl::validate_shortcut`: non-empty, no `fn` key, must contain at least one
   non-modifier key.
 - `handy_keys::validate_shortcut`: non-empty and parseable as `handy_keys::Hotkey`
@@ -188,6 +190,7 @@ Rebinding UIs are mounted for: `transcribe` and `cancel`
 `KeyboardImplementationSelector.tsx` (debug settings) →
 `commands.changeKeyboardImplementationSetting("tauri" | "handy_keys")` →
 `src-tauri/src/shortcut/mod.rs (change_keyboard_implementation_setting)`:
+
 1. No-op if unchanged. Unknown strings are silently coerced to `tauri` (`parse_keyboard_implementation`).
 2. `unregister_all_shortcuts` from the old backend (skips `cancel`; failures only warned).
 3. Persist the new setting.
@@ -208,20 +211,20 @@ handy-keys fails Tauri validation and gets reset on switch to `tauri`.
 
 ### Commands (frontend → Rust; names as registered, camelCase wrappers in `src/bindings.ts`)
 
-| Command | Args | Returns | Defined in |
-|---|---|---|---|
-| `initialize_shortcuts` | — | `Result<(), String>` | `src-tauri/src/commands/mod.rs` |
-| `change_binding` | `id: String, binding: String` | `Result<BindingResponse, String>` | `shortcut/mod.rs` |
-| `reset_binding` | `id: String` | `Result<BindingResponse, String>` | `shortcut/mod.rs` |
-| `suspend_binding` | `id: String` | `Result<(), String>` | `shortcut/mod.rs` |
-| `resume_binding` | `id: String` | `Result<(), String>` | `shortcut/mod.rs` |
-| `change_keyboard_implementation_setting` | `implementation: String` | `Result<ImplementationChangeResult, String>` | `shortcut/mod.rs` |
-| `get_keyboard_implementation` | — | `String` (`"tauri"`/`"handy_keys"`) | `shortcut/mod.rs` |
-| `start_handy_keys_recording` | `bindingId: String` | `Result<(), String>` (errors if handy-keys not active) | `shortcut/handy_keys.rs` |
-| `stop_handy_keys_recording` | — | `Result<(), String>` | `shortcut/handy_keys.rs` |
-| `change_ptt_setting` | `enabled: bool` | `Result<(), String>` — writes `push_to_talk` | `shortcut/mod.rs` |
-| `change_post_process_enabled_setting` | `enabled: bool` | `Result<(), String>` — also registers/unregisters the `transcribe_with_post_process` hotkey live (errors swallowed) | `shortcut/mod.rs` |
-| `initialize_enigo` | — | `Result<(), String>` — paste-side sibling, gated on the same macOS accessibility grant | `src-tauri/src/commands/mod.rs` |
+| Command                                  | Args                          | Returns                                                                                                             | Defined in                      |
+| ---------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `initialize_shortcuts`                   | —                             | `Result<(), String>`                                                                                                | `src-tauri/src/commands/mod.rs` |
+| `change_binding`                         | `id: String, binding: String` | `Result<BindingResponse, String>`                                                                                   | `shortcut/mod.rs`               |
+| `reset_binding`                          | `id: String`                  | `Result<BindingResponse, String>`                                                                                   | `shortcut/mod.rs`               |
+| `suspend_binding`                        | `id: String`                  | `Result<(), String>`                                                                                                | `shortcut/mod.rs`               |
+| `resume_binding`                         | `id: String`                  | `Result<(), String>`                                                                                                | `shortcut/mod.rs`               |
+| `change_keyboard_implementation_setting` | `implementation: String`      | `Result<ImplementationChangeResult, String>`                                                                        | `shortcut/mod.rs`               |
+| `get_keyboard_implementation`            | —                             | `String` (`"tauri"`/`"handy_keys"`)                                                                                 | `shortcut/mod.rs`               |
+| `start_handy_keys_recording`             | `bindingId: String`           | `Result<(), String>` (errors if handy-keys not active)                                                              | `shortcut/handy_keys.rs`        |
+| `stop_handy_keys_recording`              | —                             | `Result<(), String>`                                                                                                | `shortcut/handy_keys.rs`        |
+| `change_ptt_setting`                     | `enabled: bool`               | `Result<(), String>` — writes `push_to_talk`                                                                        | `shortcut/mod.rs`               |
+| `change_post_process_enabled_setting`    | `enabled: bool`               | `Result<(), String>` — also registers/unregisters the `transcribe_with_post_process` hotkey live (errors swallowed) | `shortcut/mod.rs`               |
+| `initialize_enigo`                       | —                             | `Result<(), String>` — paste-side sibling, gated on the same macOS accessibility grant                              | `src-tauri/src/commands/mod.rs` |
 
 (`shortcut/mod.rs` additionally defines ~45 general settings commands unrelated to
 shortcuts — audio feedback, overlay, paste, post-processing config, accelerators.
@@ -229,13 +232,13 @@ They are registered in `src-tauri/src/lib.rs` under `shortcut::…`.)
 
 ### Events (Rust → frontend)
 
-| Event | Payload | Emitted from | Listener |
-|---|---|---|---|
-| `handy-keys-event` | `FrontendKeyEvent { modifiers: string[], key: string \| null, is_key_down: bool, hotkey_string: string }` | `handy_keys.rs (recording_loop)` during recording mode | `HandyKeysShortcutInput.tsx` |
-| `settings-changed` | `{ setting: "keyboard_implementation", value: string, reset_bindings: string[] }` (same channel reused for `debug_mode`, `start_hidden`, etc.) | `shortcut/mod.rs (change_keyboard_implementation_setting)` and other setting commands | **None** — no frontend listener exists today (dead event) |
-| `recording-error` | `{ error_type: "microphone_permission_denied" \| "no_input_device" \| "unknown", detail?: string }` | `actions.rs (TranscribeAction::start)` | `App.tsx` toast (other subsystem) |
-| `transcription-error` | `String` | `actions.rs (TranscribeAction::stop)` | toast (other subsystem) |
-| `paste-error` | `()` | `actions.rs` | toast (other subsystem) |
+| Event                 | Payload                                                                                                                                        | Emitted from                                                                          | Listener                                                  |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `handy-keys-event`    | `FrontendKeyEvent { modifiers: string[], key: string \| null, is_key_down: bool, hotkey_string: string }`                                      | `handy_keys.rs (recording_loop)` during recording mode                                | `HandyKeysShortcutInput.tsx`                              |
+| `settings-changed`    | `{ setting: "keyboard_implementation", value: string, reset_bindings: string[] }` (same channel reused for `debug_mode`, `start_hidden`, etc.) | `shortcut/mod.rs (change_keyboard_implementation_setting)` and other setting commands | **None** — no frontend listener exists today (dead event) |
+| `recording-error`     | `{ error_type: "microphone_permission_denied" \| "no_input_device" \| "unknown", detail?: string }`                                            | `actions.rs (TranscribeAction::start)`                                                | `App.tsx` toast (other subsystem)                         |
+| `transcription-error` | `String`                                                                                                                                       | `actions.rs (TranscribeAction::stop)`                                                 | toast (other subsystem)                                   |
+| `paste-error`         | `()`                                                                                                                                           | `actions.rs`                                                                          | toast (other subsystem)                                   |
 
 Note: none of the shortcut events are in the specta-typed `events` export of
 `src/bindings.ts` (only history/stream events are); `handy-keys-event` is consumed
@@ -263,6 +266,7 @@ all under the single `"settings"` object.
 ## Platform-Specific Behavior
 
 ### macOS
+
 - Default backend is **HandyKeys**; default bindings use `option`(+`shift`)+`space`.
 - handy-keys uses a low-level event tap requiring the **Accessibility** permission.
   That is why shortcut registration is deferred: `initialize_shortcuts` is invoked
@@ -278,6 +282,7 @@ all under the single `"settings"` object.
   they don't also reach the focused app.
 
 ### Linux
+
 - Default backend is **Tauri** (`KeyboardImplementation::default`).
 - The dynamic **cancel shortcut is completely disabled** (`register_cancel_shortcut`
   / `unregister_cancel_shortcut` early-return) "due to instability with dynamic
@@ -285,6 +290,7 @@ all under the single `"settings"` object.
   toggle/PTT release or the tray.
 
 ### Windows
+
 - Default backend HandyKeys; `ctrl+space` / `ctrl+shift+space`; `super`/`win`
   naming for the meta key.
 
@@ -295,7 +301,7 @@ all under the single `"settings"` object.
    reaches `done`, or the command fails, the app runs with zero hotkeys and only a
    `console.warn` in the webview (`App.tsx`).
 2. **`change_binding` ordering hazard** (`shortcut/mod.rs`): the old shortcut is
-   unregistered *before* the new one is validated/registered. On validation or
+   unregistered _before_ the new one is validated/registered. On validation or
    registration failure the old hotkey stays unregistered; recovery relies on the
    frontend catching the error and re-committing `originalBinding`
    (`GlobalShortcutInput.tsx` / `HandyKeysShortcutInput.tsx` do this, with a
@@ -346,7 +352,7 @@ all under the single `"settings"` object.
 - The seam to extend is `bindings` (id → combo) + `ACTION_MAP` (id → behavior) +
   `is_transcribe_binding` (which ids route through the coordinator). Profiles could
   add binding ids, but see fragile points 9 and 12: several code paths iterate
-  *default* binding ids, special-case `"cancel"` by string, and assume the
+  _default_ binding ids, special-case `"cancel"` by string, and assume the
   transcribe set is exactly two hard-coded ids.
 - Toggle/PTT is a single global `push_to_talk` flag applied to every transcribe
   binding at event time (`handler.rs`), not per binding — per-workflow behavior

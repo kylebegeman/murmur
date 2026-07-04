@@ -31,7 +31,7 @@ old tauri-plugin-sql/sqlx setup.
   (`app_data_dir`): if a `portable` marker file sits next to the executable,
   data lives in `Data/` next to the exe; otherwise Tauri's
   `app.path().app_data_dir()` is used. On macOS that resolves to
-  `~/Library/Application Support/com.pais.handy` (identifier from
+  `~/Library/Application Support/com.kylebegeman.murmur` (identifier from
   `src-tauri/tauri.conf.json`).
 - Connections: `HistoryManager::get_connection` opens a **fresh
   `rusqlite::Connection` per operation**. No pool, no WAL pragma, no
@@ -61,17 +61,17 @@ manager").
 Table `transcription_history`, mapped to `HistoryEntry`
 (`src-tauri/src/managers/history.rs`), mirrored in `src/bindings.ts`:
 
-| Column | Type | Meaning |
-|---|---|---|
-| `id` | INTEGER PK AUTOINCREMENT | entry id, also the pagination cursor |
-| `file_name` | TEXT NOT NULL | WAV file name, `handy-{unix_seconds}.wav` |
-| `timestamp` | INTEGER NOT NULL | capture time, `Utc::now().timestamp()` (seconds) |
-| `saved` | BOOLEAN NOT NULL DEFAULT 0 | star flag; saved rows are exempt from all cleanup |
-| `title` | TEXT NOT NULL | local-time string `"%B %e, %Y - %l:%M%p"` (`format_timestamp_title`); UI ignores it and re-formats `timestamp` |
-| `transcription_text` | TEXT NOT NULL | raw transcript; **empty string when transcription failed** (enables retry) |
-| `post_processed_text` | TEXT NULL | LLM-processed text, or OpenCC Chinese-variant conversion output |
-| `post_process_prompt` | TEXT NULL | the prompt text used for post-processing |
-| `post_process_requested` | BOOLEAN NOT NULL DEFAULT 0 | whether the capture came from the post-process shortcut binding; retry re-uses it |
+| Column                   | Type                       | Meaning                                                                                                        |
+| ------------------------ | -------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `id`                     | INTEGER PK AUTOINCREMENT   | entry id, also the pagination cursor                                                                           |
+| `file_name`              | TEXT NOT NULL              | WAV file name, `handy-{unix_seconds}.wav`                                                                      |
+| `timestamp`              | INTEGER NOT NULL           | capture time, `Utc::now().timestamp()` (seconds)                                                               |
+| `saved`                  | BOOLEAN NOT NULL DEFAULT 0 | star flag; saved rows are exempt from all cleanup                                                              |
+| `title`                  | TEXT NOT NULL              | local-time string `"%B %e, %Y - %l:%M%p"` (`format_timestamp_title`); UI ignores it and re-formats `timestamp` |
+| `transcription_text`     | TEXT NOT NULL              | raw transcript; **empty string when transcription failed** (enables retry)                                     |
+| `post_processed_text`    | TEXT NULL                  | LLM-processed text, or OpenCC Chinese-variant conversion output                                                |
+| `post_process_prompt`    | TEXT NULL                  | the prompt text used for post-processing                                                                       |
+| `post_process_requested` | BOOLEAN NOT NULL DEFAULT 0 | whether the capture came from the post-process shortcut binding; retry re-uses it                              |
 
 Audio files themselves are 16 kHz mono 16-bit PCM WAV
 (`src-tauri/src/audio_toolkit/audio/utils.rs` (`save_wav_file`)).
@@ -127,7 +127,7 @@ Audio files themselves are 16 kHz mono 16-bit PCM WAV
 1. User releases the transcribe shortcut. An async task starts;
    `AudioRecordingManager::stop_recording` returns `Vec<f32>` samples.
    Cancellation and empty-sample cases bail out early: **nothing is persisted**.
-2. `file_name = format!("handy-{}.wav", chrono::Utc::now().timestamp())`; the
+2. `file_name = format!("murmur-{}.wav", chrono::Utc::now().timestamp())`; the
    WAV is written by `spawn_blocking(save_wav_file)` **concurrently** with
    transcription.
 3. WAV result is verified via `verify_wav_file` (sample-count round-trip).
@@ -138,7 +138,7 @@ Audio files themselves are 16 kHz mono 16-bit PCM WAV
    produces `ProcessedTranscription { final_text, post_processed_text, post_process_prompt }`
    (OpenCC Chinese conversion and/or LLM post-processing). Then, **only if
    `wav_saved`**, `HistoryManager::save_entry(file_name, transcription,
-   post_process, post_processed_text, post_process_prompt)` — errors logged,
+post_process, post_processed_text, post_process_prompt)` — errors logged,
    never surfaced. Paste proceeds regardless.
 6. Failure path: emits `transcription-error` (string payload) to the frontend
    and, if `wav_saved`, saves an entry with **empty `transcription_text`** so
@@ -227,23 +227,23 @@ All commands are specta-typed; generated frontend wrappers live in
 
 ### Commands (frontend -> rust)
 
-| Command | Args | Returns | Notes |
-|---|---|---|---|
-| `get_history_entries` | `cursor: number \| null, limit: number \| null` | `PaginatedHistory { entries: HistoryEntry[], has_more: bool }` | keyset pagination, limit clamped to 100 |
-| `toggle_history_entry_saved` | `id: number` | `null` | flips `saved`, emits `toggled` |
-| `get_audio_file_path` | `fileName: string` | `string` (absolute path) | plain join of `recordings_dir + file_name`, no sanitization |
-| `delete_history_entry` | `id: number` | `null` | deletes WAV (log-only on failure) then row, emits `deleted` |
-| `retry_history_entry_transcription` | `id: number` | `null` | full re-transcribe; descriptive error strings |
-| `update_history_limit` | `limit: number` | `null` | writes setting, then runs cleanup |
-| `update_recording_retention_period` | `period: string` | `null` | accepts `"never" \| "preserve_limit" \| "days3" \| "weeks2" \| "months3"`, writes setting, runs cleanup |
-| `open_recordings_folder` | — | `null` | `commands/mod.rs`, tauri-plugin-opener |
+| Command                             | Args                                            | Returns                                                        | Notes                                                                                                   |
+| ----------------------------------- | ----------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `get_history_entries`               | `cursor: number \| null, limit: number \| null` | `PaginatedHistory { entries: HistoryEntry[], has_more: bool }` | keyset pagination, limit clamped to 100                                                                 |
+| `toggle_history_entry_saved`        | `id: number`                                    | `null`                                                         | flips `saved`, emits `toggled`                                                                          |
+| `get_audio_file_path`               | `fileName: string`                              | `string` (absolute path)                                       | plain join of `recordings_dir + file_name`, no sanitization                                             |
+| `delete_history_entry`              | `id: number`                                    | `null`                                                         | deletes WAV (log-only on failure) then row, emits `deleted`                                             |
+| `retry_history_entry_transcription` | `id: number`                                    | `null`                                                         | full re-transcribe; descriptive error strings                                                           |
+| `update_history_limit`              | `limit: number`                                 | `null`                                                         | writes setting, then runs cleanup                                                                       |
+| `update_recording_retention_period` | `period: string`                                | `null`                                                         | accepts `"never" \| "preserve_limit" \| "days3" \| "weeks2" \| "months3"`, writes setting, runs cleanup |
+| `open_recordings_folder`            | —                                               | `null`                                                         | `commands/mod.rs`, tauri-plugin-opener                                                                  |
 
 ### Events (rust -> frontend)
 
-| Event name | Payload | Emitted from |
-|---|---|---|
+| Event name               | Payload                                                                                                                                      | Emitted from                                                                                                                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `history-update-payload` | tagged union: `{action:"added", entry: HistoryEntry}` \| `{action:"updated", entry}` \| `{action:"deleted", id}` \| `{action:"toggled", id}` | `managers/history.rs` `save_entry` / `update_transcription` / `delete_entry` / `toggle_saved_status` (tauri_specta `Event` derive on `HistoryUpdatePayload`; frontend `events.historyUpdatePayload`) |
-| `transcription-error` | `string` (error message) | `actions.rs` failure path (adjacent subsystem, but it is the only user-visible signal that a failed-capture history row was created) |
+| `transcription-error`    | `string` (error message)                                                                                                                     | `actions.rs` failure path (adjacent subsystem, but it is the only user-visible signal that a failed-capture history row was created)                                                                 |
 
 Adjacent events touched by the same `actions.rs` flow but owned by other
 subsystems: `recording-error`, `paste-error`.
@@ -262,13 +262,13 @@ Stored in `settings_store.json` under the single `"settings"` object
   `update_recording_retention_period` (string round-trip re-parsed in the
   command, not the enum type directly).
 
-Note the frontend selector defaults its *display* to `"never"` when the
+Note the frontend selector defaults its _display_ to `"never"` when the
 setting is undefined, while the backend default is `preserve_limit` — a
 cosmetic mismatch only possible before settings load.
 
 ## Platform-specific behavior
 
-- macOS: data at `~/Library/Application Support/com.pais.handy/{history.db,recordings/}`.
+- macOS: data at `~/Library/Application Support/com.kylebegeman.murmur/{history.db,recordings/}`.
   WAV playback uses the asset protocol (`convertFileSrc(path, "asset")`); the
   asset scope in `tauri.conf.json` is wide open (`allow: ["**"]`,
   `requireLiteralLeadingDot: false`), so any absolute path returned by

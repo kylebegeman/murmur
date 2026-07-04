@@ -100,7 +100,7 @@
     },
     "permissions": {
       "title": "Потрібні дозволи",
-      "description": "Handy потребує деяких дозволів для коректної роботи.",
+      "description": "Murmur потребує деяких дозволів для коректної роботи.",
       "microphone": {
         "title": "Доступ до мікрофона",
         "description": "Потрібен для прослуховування вашого голосу для транскрипції."
@@ -213,7 +213,7 @@
       "searchPlaceholder": "Пошук моделей за назвою…",
       "rescan": {
         "label": "Пересканувати",
-        "tooltip": "Пересканувати моделі, додані до папки моделей або кешу Hugging Face поза межами Handy"
+        "tooltip": "Пересканувати моделі, додані до папки моделей або кешу Hugging Face поза межами Murmur"
       }
     },
     "sound": {
@@ -274,11 +274,11 @@
       },
       "autostart": {
         "label": "Запуск при старті системи",
-        "description": "Автоматично запускати Handy при вході в систему"
+        "description": "Автоматично запускати Murmur при вході в систему"
       },
       "showTrayIcon": {
         "label": "Показати значок у треї",
-        "description": "Відображати значок Handy у системному треї."
+        "description": "Відображати значок Murmur у системному треї."
       },
       "overlay": {
         "style": {
@@ -461,7 +461,7 @@
       },
       "updateChecks": {
         "label": "Перевірка оновлень",
-        "description": "Автоматично перевіряти наявність нових версій Handy"
+        "description": "Автоматично перевіряти наявність нових версій Murmur"
       },
       "soundTheme": {
         "label": "Звукова тема",
@@ -536,33 +536,28 @@
       "title": "Інфо",
       "version": {
         "title": "Версія",
-        "description": "Поточна версія Handy"
+        "description": "Поточна версія Murmur"
       },
       "appDataDirectory": {
         "title": "Папка даних програми",
-        "description": "Розташування даних Handy"
+        "description": "Розташування даних Murmur"
       },
       "sourceCode": {
         "title": "Вихідний код",
         "description": "Переглянути вихідний код та зробити внесок",
         "button": "Переглянути на GitHub"
       },
-      "supportDevelopment": {
-        "title": "Підтримати розробку",
-        "description": "Допоможіть нам продовжувати розвивати Handy",
-        "button": "Підтримати"
-      },
       "acknowledgments": {
         "title": "Подяки",
         "ggml": {
           "title": "ggml",
           "description": "Високопродуктивний інференс моделі автоматичного розпізнавання мовлення Whisper від OpenAI",
-          "details": "Handy використовує ggml для швидкої локальної обробки мовлення в текст. Дякуємо за чудову роботу Георгію Герганову та контриб'юторам."
+          "details": "Murmur використовує ggml для швидкої локальної обробки мовлення в текст. Дякуємо за чудову роботу Георгію Герганову та контриб'юторам."
         }
       },
       "whatsNewUpdates": {
         "label": "Показувати новини",
-        "description": "Показувати примітки до випуску після оновлень Handy"
+        "description": "Показувати примітки до випуску після оновлень Murmur"
       }
     }
   },
@@ -589,7 +584,7 @@
     "noOptionsFound": "Опцій не знайдено"
   },
   "accessibility": {
-    "permissionsDescription": "Handy потребує дозволи доступності для введення транскрибованого тексту.",
+    "permissionsDescription": "Murmur потребує дозволи доступності для введення транскрибованого тексту.",
     "openSettings": "Відкрити Системні налаштування"
   },
   "errors": {
@@ -612,13 +607,13 @@
   },
   "appLanguage": {
     "title": "Мова інтерфейсу",
-    "description": "Змінити мову інтерфейсу Handy"
+    "description": "Змінити мову інтерфейсу Murmur"
   },
   "overlay": {
     "transcribing": "Обробка...",
     "processing": "Постобробка..."
   },
   "whatsNew": {
-    "title": "Нове в Handy v{{version}}"
+    "title": "Нове в Murmur v{{version}}"
   }
 }

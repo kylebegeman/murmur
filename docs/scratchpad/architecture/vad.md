@@ -13,24 +13,24 @@ VAD improves transcription quality by removing long silences (which Whisper-fami
 
 ## Key files and roles
 
-| File | Role |
-| --- | --- |
-| `src-tauri/src/audio_toolkit/vad/mod.rs` | Trait + frame enum + tuning constants shared by all detectors |
-| `src-tauri/src/audio_toolkit/vad/silero.rs` | `SileroVad`: raw per-frame speech probability via the Silero ONNX model |
-| `src-tauri/src/audio_toolkit/vad/smoothed.rs` | `SmoothedVad`: onset / prefill / hangover smoothing wrapper around any detector |
-| `src-tauri/src/audio_toolkit/audio/recorder.rs` | `AudioRecorder` + `VadPolicy` + `VadConfig`; applies VAD in the consumer thread (`run_consumer` / `handle_frame`) |
-| `src-tauri/src/audio_toolkit/audio/resampler.rs` | `FrameResampler`: converts device-rate chunks into exact 480-sample 16 kHz frames the VAD requires (adjacent subsystem, one hop) |
-| `src-tauri/src/managers/audio.rs` | `AudioRecordingManager`: builds the VAD stack (`create_audio_recorder`), resolves the bundled model path (`preload_vad`), owns recording lifecycle |
-| `src-tauri/src/actions.rs` | `TranscribeAction::start`: chooses the per-session `VadPolicy` from settings + model streaming capability; kicks off VAD preload in parallel with ASR model load |
-| `src-tauri/src/settings.rs` | `AppSettings.vad_enabled` (`default_vad_enabled()` = `true`) |
-| `src-tauri/src/shortcut/mod.rs` | Tauri command `change_vad_enabled_setting` |
-| `src-tauri/src/lib.rs` | Registers `change_vad_enabled_setting` in the invoke handler |
-| `src/components/settings/VoiceActivityDetection.tsx` | Settings toggle component (the only VAD UI) |
-| `src/components/settings/advanced/AdvancedSettings.tsx` | Mounts `<VoiceActivityDetection/>` in Settings → Advanced |
-| `src/stores/settingsStore.ts` | Maps `vad_enabled` updates to `commands.changeVadEnabledSetting` with optimistic update + rollback |
-| `src/bindings.ts` | Specta-generated `changeVadEnabledSetting` → `invoke("change_vad_enabled_setting")` |
-| `src-tauri/src/audio_toolkit/bin/cli.rs` | Dev CLI that builds the same stack standalone (threshold 0.5, relative model path) |
-| `src-tauri/resources/models/silero_vad_v4.onnx` | The bundled Silero VAD v4 model weights |
+| File                                                    | Role                                                                                                                                                             |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src-tauri/src/audio_toolkit/vad/mod.rs`                | Trait + frame enum + tuning constants shared by all detectors                                                                                                    |
+| `src-tauri/src/audio_toolkit/vad/silero.rs`             | `SileroVad`: raw per-frame speech probability via the Silero ONNX model                                                                                          |
+| `src-tauri/src/audio_toolkit/vad/smoothed.rs`           | `SmoothedVad`: onset / prefill / hangover smoothing wrapper around any detector                                                                                  |
+| `src-tauri/src/audio_toolkit/audio/recorder.rs`         | `AudioRecorder` + `VadPolicy` + `VadConfig`; applies VAD in the consumer thread (`run_consumer` / `handle_frame`)                                                |
+| `src-tauri/src/audio_toolkit/audio/resampler.rs`        | `FrameResampler`: converts device-rate chunks into exact 480-sample 16 kHz frames the VAD requires (adjacent subsystem, one hop)                                 |
+| `src-tauri/src/managers/audio.rs`                       | `AudioRecordingManager`: builds the VAD stack (`create_audio_recorder`), resolves the bundled model path (`preload_vad`), owns recording lifecycle               |
+| `src-tauri/src/actions.rs`                              | `TranscribeAction::start`: chooses the per-session `VadPolicy` from settings + model streaming capability; kicks off VAD preload in parallel with ASR model load |
+| `src-tauri/src/settings.rs`                             | `AppSettings.vad_enabled` (`default_vad_enabled()` = `true`)                                                                                                     |
+| `src-tauri/src/shortcut/mod.rs`                         | Tauri command `change_vad_enabled_setting`                                                                                                                       |
+| `src-tauri/src/lib.rs`                                  | Registers `change_vad_enabled_setting` in the invoke handler                                                                                                     |
+| `src/components/settings/VoiceActivityDetection.tsx`    | Settings toggle component (the only VAD UI)                                                                                                                      |
+| `src/components/settings/advanced/AdvancedSettings.tsx` | Mounts `<VoiceActivityDetection/>` in Settings → Advanced                                                                                                        |
+| `src/stores/settingsStore.ts`                           | Maps `vad_enabled` updates to `commands.changeVadEnabledSetting` with optimistic update + rollback                                                               |
+| `src/bindings.ts`                                       | Specta-generated `changeVadEnabledSetting` → `invoke("change_vad_enabled_setting")`                                                                              |
+| `src-tauri/src/audio_toolkit/bin/cli.rs`                | Dev CLI that builds the same stack standalone (threshold 0.5, relative model path)                                                                               |
+| `src-tauri/resources/models/silero_vad_v4.onnx`         | The bundled Silero VAD v4 model weights                                                                                                                          |
 
 External crate: `vad-rs` (git, `https://github.com/cjpais/vad-rs`, pinned in `Cargo.lock` to rev `2a412ed`, `default-features = false`). Its `Vad` struct holds an `ort` session plus the Silero LSTM `h`/`c` state tensors (2x1x64 each); `Vad::compute` runs one frame and returns `VadResult { prob }`; `Vad::reset` zeroes the recurrent state. The session is created CPU-only with `GraphOptimizationLevel::Level3` and 1 intra / 1 inter thread (`vad-rs/src/session.rs`), independent of the app's `ort_accelerator` transcription setting.
 
@@ -135,13 +135,13 @@ Timing consequence: with VAD enabled the returned buffer is wall-clock-compresse
 
 ## Tauri commands and events
 
-| Name | Direction | Payload | Where |
-| --- | --- | --- | --- |
-| `change_vad_enabled_setting` | frontend → rust command | args `{ enabled: boolean }`, returns `Result<(), String>` (never errors in practice; writes the settings store) | `src-tauri/src/shortcut/mod.rs (change_vad_enabled_setting)`; invoked via `src/bindings.ts (changeVadEnabledSetting)` from `src/stores/settingsStore.ts` |
-| `get_app_settings` | frontend → rust command | returns full `AppSettings` including `vad_enabled` | settings subsystem; how the toggle reads its value |
-| `mic-level` | rust → frontend event (`emit_to("recording_overlay", ...)`) | `f32[16]` spectrum buckets, ~24 Hz while the stream is open | emitted by the recorder's level callback wired in `managers/audio.rs (create_audio_recorder)` → `overlay.rs (emit_levels)`. Computed on raw pre-VAD audio, so the overlay visualizer moves even for frames VAD later drops. Overlay subsystem detail; noted here because the callback lives on the same consumer thread. |
-| `recording-error` | rust → frontend event | `{ error_type: "microphone_permission_denied" \| "no_input_device" \| "unknown", detail?: string }` | `actions.rs (TranscribeAction::start)`; this is the only user-visible channel when recording start fails, including "Recorder not available" caused by a VAD preload failure |
-| `settings-changed` | rust → frontend event | emitted by several settings commands in `shortcut/mod.rs` — **not** emitted by `change_vad_enabled_setting` (the frontend relies on its optimistic store update) | `src-tauri/src/shortcut/mod.rs` |
+| Name                         | Direction                                                   | Payload                                                                                                                                                          | Where                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `change_vad_enabled_setting` | frontend → rust command                                     | args `{ enabled: boolean }`, returns `Result<(), String>` (never errors in practice; writes the settings store)                                                  | `src-tauri/src/shortcut/mod.rs (change_vad_enabled_setting)`; invoked via `src/bindings.ts (changeVadEnabledSetting)` from `src/stores/settingsStore.ts`                                                                                                                                                                 |
+| `get_app_settings`           | frontend → rust command                                     | returns full `AppSettings` including `vad_enabled`                                                                                                               | settings subsystem; how the toggle reads its value                                                                                                                                                                                                                                                                       |
+| `mic-level`                  | rust → frontend event (`emit_to("recording_overlay", ...)`) | `f32[16]` spectrum buckets, ~24 Hz while the stream is open                                                                                                      | emitted by the recorder's level callback wired in `managers/audio.rs (create_audio_recorder)` → `overlay.rs (emit_levels)`. Computed on raw pre-VAD audio, so the overlay visualizer moves even for frames VAD later drops. Overlay subsystem detail; noted here because the callback lives on the same consumer thread. |
+| `recording-error`            | rust → frontend event                                       | `{ error_type: "microphone_permission_denied" \| "no_input_device" \| "unknown", detail?: string }`                                                              | `actions.rs (TranscribeAction::start)`; this is the only user-visible channel when recording start fails, including "Recorder not available" caused by a VAD preload failure                                                                                                                                             |
+| `settings-changed`           | rust → frontend event                                       | emitted by several settings commands in `shortcut/mod.rs` — **not** emitted by `change_vad_enabled_setting` (the frontend relies on its optimistic store update) | `src-tauri/src/shortcut/mod.rs`                                                                                                                                                                                                                                                                                          |
 
 There are no VAD-specific events; VAD state (in-speech / dropped frames) is never surfaced to the UI.
 

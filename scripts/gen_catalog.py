@@ -3,7 +3,7 @@
 # dependencies = ["huggingface_hub", "fsspec"]
 # ///
 """
-Handy model catalog generator.
+Murmur model catalog generator.
 
 Merges three sources into one catalog.json:
   1. HF card `transcribe_cpp` block  -> capabilities + benchmarks (canonical)

@@ -1,27 +1,25 @@
-# Handy
+# Murmur
 
-[![Discord](https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/invite/WVBeWsNXK4)
+**A local-first speech-to-text app: press a shortcut, speak, and your words appear in any text field — entirely on your own computer.**
 
-**A free, open source, and extensible speech-to-text application that works completely offline.**
+Murmur is a productized continuation of [Handy](https://github.com/cjpais/Handy), the open-source dictation app by [CJ Pais](https://github.com/cjpais), evolved in this fork ([kylebegeman/murmur](https://github.com/kylebegeman/murmur)). It keeps Handy's stack and philosophy — offline, private, simple — and builds on it as a polished product. Upstream Handy development continues at [cjpais/Handy](https://github.com/cjpais/Handy); credit for the foundation belongs there.
 
-Handy is a cross-platform desktop application that provides simple, privacy-focused speech transcription. Press a shortcut, speak, and have your words appear in any text field. This happens on your own computer without sending any information to the cloud.
+## Why Murmur?
 
-## Why Handy?
+Murmur inherits the principles Handy was created around (as stated on the upstream site, [handy.computer](https://handy.computer)):
 
-Handy was created to fill the gap for a truly open source, extensible speech-to-text tool. As stated on [handy.computer](https://handy.computer):
-
-- **Free**: Accessibility tooling belongs in everyone's hands, not behind a paywall
-- **Open Source**: Together we can build further. Extend Handy for yourself and contribute to something bigger
 - **Private**: Your voice stays on your computer. Get transcriptions without sending audio to the cloud
 - **Simple**: One tool, one job. Transcribe what you say and put it into a text box
+- **Open**: Built in the open on an MIT-licensed codebase, with full credit to upstream
+- **Local-first**: No accounts, no network dependency for the core dictation loop
 
-Handy isn't trying to be the best speech-to-text app—it's trying to be the most forkable one.
+Handy set out to be the most forkable speech-to-text app. Murmur is one of those forks, taken seriously as a product.
 
 ## How It Works
 
 1. **Press** a configurable keyboard shortcut to start/stop recording (or use push-to-talk mode)
 2. **Speak** your words while the shortcut is active
-3. **Release** and Handy processes your speech using Whisper
+3. **Release** and Murmur processes your speech using Whisper
 4. **Get** your transcribed text pasted directly into whatever app you're using
 
 The process is entirely local:
@@ -36,30 +34,27 @@ The process is entirely local:
 
 ### Installation
 
-1. Download the latest release from the [releases page](https://github.com/cjpais/Handy/releases) or the [website](https://handy.computer)
-   - **macOS**: Also available via [Homebrew cask](https://formulae.brew.sh/cask/handy): `brew install --cask handy`
-   - **Windows**: Also available via [winget](https://github.com/microsoft/winget-pkgs): `winget install cjpais.Handy` \
-     **Note:** The Homebrew cask and winget package are not maintained by the Handy developers.
-2. Install the application
-3. Launch Handy and grant necessary system permissions (microphone, accessibility)
-4. Configure your preferred keyboard shortcuts in Settings
-5. Start transcribing!
+Murmur has no public releases yet — build it from source (see [BUILD.md](BUILD.md)).
+
+> **Note on upstream distribution channels:** the original Handy app is distributed via [handy.computer](https://handy.computer), the [Handy releases page](https://github.com/cjpais/Handy/releases), the Homebrew cask `handy`, and winget (`cjpais.Handy`). Those channels ship **Handy**, not Murmur — Murmur is not distributed there.
+
+Once installed/built:
+
+1. Launch Murmur and grant necessary system permissions (microphone, accessibility)
+2. Configure your preferred keyboard shortcuts in Settings
+3. Start transcribing!
 
 ### Development Setup
 
 For detailed build instructions including platform-specific requirements, see [BUILD.md](BUILD.md).
 
-## Integrations
+## Integrations (upstream Handy)
 
-<a href="https://www.raycast.com/mattiacolombomc/handy" title="Install Handy Raycast Extension"><img src="https://www.raycast.com/mattiacolombomc/handy/install_button@2x.png?v=1.1" height="64" style="height: 64px;" alt="Install handy Raycast Extension" /></a>
-
-Control Handy from [Raycast](https://www.raycast.com) — start/stop recording, browse transcript history, manage dictionary, switch models and languages.
-
-[Source](https://github.com/mattiacolombomc/raycast-handy) · by [@mattiacolombomc](https://github.com/mattiacolombomc)
+The upstream Handy app has a [Raycast extension](https://www.raycast.com/mattiacolombomc/handy) by [@mattiacolombomc](https://github.com/mattiacolombomc) ([source](https://github.com/mattiacolombomc/raycast-handy)) for start/stop recording, transcript history, dictionary, and model switching. It targets Handy; compatibility with Murmur is not guaranteed.
 
 ## Architecture
 
-Handy is built as a Tauri application combining:
+Murmur is built as a Tauri application combining:
 
 - **Frontend**: React + TypeScript with Tailwind CSS for the settings UI
 - **Backend**: Rust for system integration, audio processing, and ML inference
@@ -73,14 +68,16 @@ Handy is built as a Tauri application combining:
 
 ### Debug Mode
 
-Handy includes an advanced debug mode for development and troubleshooting. Access it by pressing:
+Murmur includes an advanced debug mode for development and troubleshooting. Access it by pressing:
 
 - **macOS**: `Cmd+Shift+D`
 - **Windows/Linux**: `Ctrl+Shift+D`
 
 ### CLI Parameters
 
-Handy supports command-line flags for controlling a running instance and customizing startup behavior. These work on all platforms (macOS, Windows, Linux).
+Murmur supports command-line flags for controlling a running instance and customizing startup behavior. These work on all platforms (macOS, Windows, Linux).
+
+> **Binary naming note:** the Rust crate (and therefore the dev/CLI binary, e.g. `src-tauri/target/debug/handy`) is still named `handy` — the crate rename is deferred. Bundled apps use the product name: `Murmur.app`, `Murmur.exe`, etc.
 
 **Remote control flags** (sent to an already-running instance via the single-instance plugin):
 
@@ -105,15 +102,15 @@ Flags can be combined for autostart scenarios:
 handy --start-hidden --no-tray
 ```
 
-> **macOS tip:** When Handy is installed as an app bundle, invoke the binary directly:
+> **macOS tip:** When Murmur is installed as an app bundle, invoke the binary directly:
 >
 > ```bash
-> /Applications/Handy.app/Contents/MacOS/Handy --toggle-transcription
+> /Applications/Murmur.app/Contents/MacOS/Murmur --toggle-transcription
 > ```
 
 ## Known Issues & Current Limitations
 
-This project is actively being developed and has some [known issues](https://github.com/cjpais/Handy/issues). We believe in transparency about the current state:
+Murmur inherits some known issues from upstream Handy (tracked at [cjpais/Handy issues](https://github.com/cjpais/Handy/issues)); fork-specific issues belong in [this repo's issue tracker](https://github.com/kylebegeman/murmur/issues).
 
 ### Major Issues (Help Wanted)
 
@@ -144,12 +141,12 @@ For reliable text input on Linux, install the appropriate tool for your display 
 - **Wayland**: Install `wtype` (preferred) or `dotool` for text input to work correctly
 - **dotool setup**: Requires adding your user to the `input` group: `sudo usermod -aG input $USER` (then log out and back in)
 
-Without these tools, Handy falls back to enigo which may have limited compatibility, especially on Wayland.
+Without these tools, Murmur falls back to enigo which may have limited compatibility, especially on Wayland.
 
 **Other Notes:**
 
 - **Runtime library dependency (`libgtk-layer-shell.so.0`)**:
-  - Handy links `gtk-layer-shell` on Linux. If startup fails with `error while loading shared libraries: libgtk-layer-shell.so.0`, install the runtime package for your distro:
+  - Murmur links `gtk-layer-shell` on Linux. If startup fails with `error while loading shared libraries: libgtk-layer-shell.so.0`, install the runtime package for your distro:
 
     | Distro        | Package to install    | Example command                        |
     | ------------- | --------------------- | -------------------------------------- |
@@ -159,22 +156,22 @@ Without these tools, Handy falls back to enigo which may have limited compatibil
 
   - For building from source on Ubuntu/Debian, you may also need `libgtk-layer-shell-dev`.
 
-- The recording overlay is disabled by default on Linux (`Overlay Position: None`) because certain compositors treat it as the active window. When the overlay is visible it can steal focus, which prevents Handy from pasting back into the application that triggered transcription. If you enable the overlay anyway, be aware that clipboard-based pasting might fail or end up in the wrong window.
+- The recording overlay is disabled by default on Linux (`Overlay Position: None`) because certain compositors treat it as the active window. When the overlay is visible it can steal focus, which prevents Murmur from pasting back into the application that triggered transcription. If you enable the overlay anyway, be aware that clipboard-based pasting might fail or end up in the wrong window.
 - If you are having trouble with the app, running with the environment variable `WEBKIT_DISABLE_DMABUF_RENDERER=1` may help
-- If Handy fails to start reliably on Linux, see [Troubleshooting → Linux Startup Crashes or Instability](#linux-startup-crashes-or-instability).
+- If Murmur fails to start reliably on Linux, see [Troubleshooting → Linux Startup Crashes or Instability](#linux-startup-crashes-or-instability).
 - **Global keyboard shortcuts (Wayland):** On Wayland, system-level shortcuts must be configured through your desktop environment or window manager. Use the [CLI flags](#cli-parameters) as the command for your custom shortcut.
 
   **GNOME:**
   1. Open **Settings > Keyboard > Keyboard Shortcuts > Custom Shortcuts**
   2. Click the **+** button to add a new shortcut
-  3. Set the **Name** to `Toggle Handy Transcription`
+  3. Set the **Name** to `Toggle Murmur Transcription`
   4. Set the **Command** to `handy --toggle-transcription`
   5. Click **Set Shortcut** and press your desired key combination (e.g., `Super+O`)
 
   **KDE Plasma:**
   1. Open **System Settings > Shortcuts > Custom Shortcuts**
   2. Click **Edit > New > Global Shortcut > Command/URL**
-  3. Name it `Toggle Handy Transcription`
+  3. Name it `Toggle Murmur Transcription`
   4. In the **Trigger** tab, set your desired key combination
   5. In the **Action** tab, set the command to `handy --toggle-transcription`
 
@@ -194,7 +191,7 @@ Without these tools, Handy falls back to enigo which may have limited compatibil
   bind = $mainMod, O, exec, handy --toggle-transcription
   ```
 
-- You can also manage global shortcuts outside of Handy via Unix signals, which lets Wayland window managers or other hotkey daemons keep ownership of keybindings:
+- You can also manage global shortcuts outside of Murmur via Unix signals, which lets Wayland window managers or other hotkey daemons keep ownership of keybindings:
 
   | Signal    | Action                                    | Example                |
   | --------- | ----------------------------------------- | ---------------------- |
@@ -225,7 +222,7 @@ Without these tools, Handy falls back to enigo which may have limited compatibil
 
 ### System Requirements/Recommendations
 
-The following are recommendations for running Handy on your own machine. If you don't meet the system requirements, the performance of the application may be degraded. We are working on improving the performance across all kinds of computers and hardware.
+The following are recommendations for running Murmur on your own machine. If you don't meet the system requirements, the performance of the application may be degraded.
 
 **For Whisper Models:**
 
@@ -241,60 +238,36 @@ The following are recommendations for running Handy on your own machine. If you 
 - **Performance**: ~5x real-time speed on mid-range hardware (tested on i5)
 - **Automatic language detection** - no manual language selection required
 
-## Roadmap & Active Development
+## Roadmap
 
-We're actively working on several features and improvements. Contributions and feedback are welcome!
-
-### In Progress
-
-**Debug Logging:**
-
-- Adding debug logging to a file to help diagnose issues
-
-**macOS Keyboard Improvements:**
-
-- Support for Globe key as transcription trigger
-- A rewrite of global shortcut handling for MacOS, and potentially other OS's too.
-
-**Opt-in Analytics:**
-
-- Collect anonymous usage data to help improve Handy
-- Privacy-first approach with clear opt-in
-
-**Settings Refactoring:**
-
-- Cleanup and refactor settings system which is becoming bloated and messy
-- Implement better abstractions for settings management
-
-**Tauri Commands Cleanup:**
-
-- Abstract and organize Tauri command patterns
-- Investigate tauri-specta for improved type safety and organization
+Murmur's product direction lives in [docs/product/murmur-product-plan.md](docs/product/murmur-product-plan.md). Upstream Handy's roadmap and active development continue independently at [cjpais/Handy](https://github.com/cjpais/Handy).
 
 ## Verify Release Signatures
 
-Handy release artifacts are signed with Tauri's updater signature format. The public key is stored in [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) under `plugins.updater.pubkey`.
+Murmur release artifacts will be signed with Tauri's updater signature format. The public key is stored in [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) under `plugins.updater.pubkey`.
 
-To verify a release manually, set `ARTIFACT` to the filename you downloaded, save the `pubkey` value from `src-tauri/tauri.conf.json` to `handy.pub.b64`, then decode the public key and matching `.sig` file from base64 and verify the artifact with `minisign`:
+> **Note:** there are no Murmur releases yet, and the `pubkey` field is currently empty on purpose — the updater fails closed until a signing key is generated and the first signed release is published.
+
+To verify a release manually, set `ARTIFACT` to the filename you downloaded, save the `pubkey` value from `src-tauri/tauri.conf.json` to `murmur.pub.b64`, then decode the public key and matching `.sig` file from base64 and verify the artifact with `minisign`:
 
 ```bash
 # Replace with the file you downloaded
-ARTIFACT="Handy_0.8.1_amd64.AppImage"
+ARTIFACT="Murmur_0.8.1_amd64.AppImage"
 
 python3 - "$ARTIFACT" <<'PY'
 import base64, pathlib, sys
 
 artifact = sys.argv[1]
 
-pub = pathlib.Path("handy.pub.b64").read_text().strip()
-pathlib.Path("handy.pub").write_bytes(base64.b64decode(pub))
+pub = pathlib.Path("murmur.pub.b64").read_text().strip()
+pathlib.Path("murmur.pub").write_bytes(base64.b64decode(pub))
 
 sig = pathlib.Path(f"{artifact}.sig").read_text().strip()
 pathlib.Path(f"{artifact}.minisig").write_bytes(base64.b64decode(sig))
 PY
 
 minisign -Vm "$ARTIFACT" \
-  -p handy.pub \
+  -p murmur.pub \
   -x "$ARTIFACT.minisig"
 ```
 
@@ -310,11 +283,11 @@ Do not use `gpg` for these `.sig` files.
 
 ### Manual Model Installation (For Proxy Users or Network Restrictions)
 
-If you're behind a proxy, firewall, or in a restricted network environment where Handy cannot download models automatically, you can manually download and install them. The URLs are publicly accessible from any browser.
+If you're behind a proxy, firewall, or in a restricted network environment where Murmur cannot download models automatically, you can manually download and install them. The URLs are publicly accessible from any browser.
 
 #### Step 1: Find Your App Data Directory
 
-1. Open Handy settings
+1. Open Murmur settings
 2. Navigate to the **About** section
 3. Copy the "App Data Directory" path shown there, or use the shortcuts:
    - **macOS**: `Cmd+Shift+D` to open debug menu
@@ -322,9 +295,9 @@ If you're behind a proxy, firewall, or in a restricted network environment where
 
 The typical paths are:
 
-- **macOS**: `~/Library/Application Support/com.pais.handy/`
-- **Windows**: `C:\Users\{username}\AppData\Roaming\com.pais.handy\`
-- **Linux**: `~/.config/com.pais.handy/`
+- **macOS**: `~/Library/Application Support/com.kylebegeman.murmur/`
+- **Windows**: `C:\Users\{username}\AppData\Roaming\com.kylebegeman.murmur\`
+- **Linux**: `~/.config/com.kylebegeman.murmur/`
 
 #### Step 2: Create Models Directory
 
@@ -332,15 +305,15 @@ Inside your app data directory, create a `models` folder if it doesn't already e
 
 ```bash
 # macOS/Linux
-mkdir -p ~/Library/Application\ Support/com.pais.handy/models
+mkdir -p ~/Library/Application\ Support/com.kylebegeman.murmur/models
 
 # Windows (PowerShell)
-New-Item -ItemType Directory -Force -Path "$env:APPDATA\com.pais.handy\models"
+New-Item -ItemType Directory -Force -Path "$env:APPDATA\com.kylebegeman.murmur\models"
 ```
 
 #### Step 3: Download Model Files
 
-Download the models you want from below
+Download the models you want from below (hosted on upstream Handy's model CDN):
 
 **Whisper Models (single .bin files):**
 
@@ -392,24 +365,24 @@ Final structure should look like:
 
 - For Parakeet models, the extracted directory name **must** match exactly as shown above
 - Do not rename the `.bin` files for Whisper models—use the exact filenames from the download URLs
-- After placing the files, restart Handy to detect the new models
+- After placing the files, restart Murmur to detect the new models
 
 #### Step 5: Verify Installation
 
-1. Restart Handy
+1. Restart Murmur
 2. Open Settings → Models
 3. Your manually installed models should now appear as "Downloaded"
 4. Select the model you want to use and test transcription
 
 ### Custom Whisper Models
 
-Handy can auto-discover custom Whisper GGML models placed in the `models` directory. This is useful for users who want to use fine-tuned or community models not included in the default model list.
+Murmur can auto-discover custom Whisper GGML models placed in the `models` directory. This is useful for users who want to use fine-tuned or community models not included in the default model list.
 
 **How to use:**
 
 1. Obtain a Whisper model in GGML `.bin` format (e.g., from [Hugging Face](https://huggingface.co/models?search=whisper%20ggml))
 2. Place the `.bin` file in your `models` directory (see paths above)
-3. Restart Handy to discover the new model
+3. Restart Murmur to discover the new model
 4. The model will appear in the "Custom Models" section of the Models settings page
 
 **Important:**
@@ -420,11 +393,11 @@ Handy can auto-discover custom Whisper GGML models placed in the `models` direct
 
 ### Linux Startup Crashes or Instability
 
-If Handy fails to start reliably on Linux — for example, it crashes shortly after launch, never shows its window, or reports a Wayland protocol error — try the steps below in order.
+If Murmur fails to start reliably on Linux — for example, it crashes shortly after launch, never shows its window, or reports a Wayland protocol error — try the steps below in order.
 
 **1. Install (or reinstall) `gtk-layer-shell`**
 
-Handy uses `gtk-layer-shell` for its recording overlay and links against it at runtime. A missing or broken installation is the most common cause of startup failures and can manifest as a crash or a hang well before any window is shown. Make sure the runtime package is installed for your distro:
+Murmur uses `gtk-layer-shell` for its recording overlay and links against it at runtime. A missing or broken installation is the most common cause of startup failures and can manifest as a crash or a hang well before any window is shown. Make sure the runtime package is installed for your distro:
 
 | Distro        | Package to install    | Example command                        |
 | ------------- | --------------------- | -------------------------------------- |
@@ -436,7 +409,7 @@ If it is already installed and you still see startup problems, try reinstalling 
 
 **2. Disable the GTK layer shell overlay (`HANDY_NO_GTK_LAYER_SHELL`)**
 
-If installing the library does not help, you can skip `gtk-layer-shell` initialization entirely as a workaround. On some compositors (notably KDE Plasma under Wayland) it has been reported to interact poorly with the recording overlay. With this variable set, the overlay falls back to a regular always-on-top window:
+If installing the library does not help, you can skip `gtk-layer-shell` initialization entirely as a workaround. On some compositors (notably KDE Plasma under Wayland) it has been reported to interact poorly with the recording overlay. With this variable set, the overlay falls back to a regular always-on-top window (the `HANDY_*` env var name is inherited from upstream and unchanged for now):
 
 ```bash
 HANDY_NO_GTK_LAYER_SHELL=1 handy
@@ -452,57 +425,45 @@ WEBKIT_DISABLE_DMABUF_RENDERER=1 handy
 
 **Making a workaround permanent**
 
-Once you've found a flag that helps, export it from your shell profile (`~/.bashrc`, `~/.zshenv`, …) or from the desktop autostart entry that launches Handy. If you launch Handy from a `.desktop` file, you can prefix the `Exec=` line, e.g.:
+Once you've found a flag that helps, export it from your shell profile (`~/.bashrc`, `~/.zshenv`, …) or from the desktop autostart entry that launches Murmur. If you launch Murmur from a `.desktop` file, you can prefix the `Exec=` line, e.g.:
 
 ```ini
 Exec=env HANDY_NO_GTK_LAYER_SHELL=1 handy
 ```
 
-If a workaround helps you, please [open an issue](https://github.com/cjpais/Handy/issues) describing your distro, desktop environment, and session type — that information helps us narrow down the underlying bug.
+If a workaround helps you, please [open an issue](https://github.com/kylebegeman/murmur/issues) describing your distro, desktop environment, and session type — that information helps narrow down the underlying bug.
 
 ### How to Contribute
 
-1. **Check existing issues** at [github.com/cjpais/Handy/issues](https://github.com/cjpais/Handy/issues)
+1. **Check existing issues** at [github.com/kylebegeman/murmur/issues](https://github.com/kylebegeman/murmur/issues)
 2. **Fork the repository** and create a feature branch
 3. **Test thoroughly** on your target platform
 4. **Submit a pull request** with clear description of changes
-5. **Join the discussion** - reach out at [contact@handy.computer](mailto:contact@handy.computer)
 
-The goal is to create both a useful tool and a foundation for others to build upon—a well-patterned, simple codebase that serves the community.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
-## Sponsors
+## Related Projects (upstream)
 
-<div align="center">
-  We're grateful for the support of our sponsors who help make Handy possible:
-  <br><br>
-  <a href="https://wordcab.com">
-    <img src="sponsor-images/wordcab.png" alt="Wordcab" width="120" height="120">
-  </a>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://github.com/epicenter-so/epicenter">
-    <img src="sponsor-images/epicenter.png" alt="Epicenter" width="120" height="120">
-  </a>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://boltai.com?utm_source=handy">
-    <img src="sponsor-images/boltai.jpg" alt="Bolt AI" width="120" height="120">
-  </a>
-</div>
-
-## Related Projects
-
+- **[Handy](https://github.com/cjpais/Handy)** - The upstream app this fork is based on, by CJ Pais
 - **[Handy CLI](https://github.com/cjpais/handy-cli)** - The original Python command-line version
-- **[handy.computer](https://handy.computer)** - Project website with demos and documentation
+- **[handy.computer](https://handy.computer)** - The upstream project website with demos and documentation
+
+Upstream Handy is supported by its own sponsors — if you find this codebase valuable, consider supporting the original project.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) file for details. The code is Copyright (c) CJ Pais and is used under the MIT license.
 
-Handy is open-source software, but the Handy name, logo, icon, and brand assets are not open-source. Unofficial forks, rewrites, and redistributions must use their own branding and must not imply endorsement or affiliation.
+**Branding:** The Handy name, logo, icon, and brand assets belong to the upstream project and are **not** open-source. Upstream's original terms state:
+
+> "Handy is open-source software, but the Handy name, logo, icon, and brand assets are not open-source. Unofficial forks, rewrites, and redistributions must use their own branding and must not imply endorsement or affiliation."
+
+Accordingly: the icon artwork currently in this repository is a temporary development placeholder derived from upstream and **must be replaced with original Murmur artwork before any distribution**. Murmur's own name and branding belong to Kyle Begeman. Murmur is an independent fork and does not imply endorsement by or affiliation with the upstream Handy project.
 
 ## Acknowledgments
 
+- **CJ Pais and the Handy contributors** for the app this fork is built on
 - **Whisper** by OpenAI for the speech recognition model
 - **ggml and transcribe.cpp** for amazing cross-platform speech-to-text inference/acceleration
 - **Silero** for great lightweight VAD
 - **Tauri** team for the excellent Rust-based app framework
-- **Community contributors** helping make Handy better

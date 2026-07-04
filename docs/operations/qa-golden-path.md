@@ -2,9 +2,9 @@
 
 Manual QA script for the Murmur dictation app (Tauri fork of Handy, repo `/Users/kyle/Developer/products/murmur-new`). Primary platform: **macOS**. Reference test cases from commit messages as `QA TC-nn`.
 
-- **Bundle identifier:** `com.pais.handy` (from `src-tauri/tauri.conf.json`; `productName: Handy`)
-- **App data:** `~/Library/Application Support/com.pais.handy/` (contains `settings_store.json`, `history.db`, `recordings/`, models)
-- **Log file:** `handy.log` in the app log dir (`~/Library/Logs/com.pais.handy/`); debug settings via `Cmd+Shift+D` in the main window
+- **Bundle identifier:** `com.kylebegeman.murmur` (from `src-tauri/tauri.conf.json`; `productName: Murmur`)
+- **App data:** `~/Library/Application Support/com.kylebegeman.murmur/` (contains `settings_store.json`, `history.db`, `recordings/`, models)
+- **Log file:** `murmur.log` in the app log dir (`~/Library/Logs/com.kylebegeman.murmur/`); debug settings via `Cmd+Shift+D` in the main window
 - **Default shortcuts (macOS):** `Option+Space` = transcribe, `Option+Shift+Space` = transcribe with post-processing, `Escape` = cancel (registered **only while recording**)
 - **Default behavior:** push-to-talk ON (hold to record, release to stop), overlay style `Live`, overlay position `bottom`, paste method `ctrl_v` (clipboard + synthetic Cmd+V), audio feedback sounds OFF
 
@@ -18,22 +18,22 @@ Quit the app first (tray menu → Quit, or `Cmd+Q`), then:
 
 ```bash
 # Reset microphone permission only
-tccutil reset Microphone com.pais.handy
+tccutil reset Microphone com.kylebegeman.murmur
 
 # Reset accessibility permission only
-tccutil reset Accessibility com.pais.handy
+tccutil reset Accessibility com.kylebegeman.murmur
 
 # Reset everything TCC knows about the app
-tccutil reset All com.pais.handy
+tccutil reset All com.kylebegeman.murmur
 ```
 
-**Expected:** each command prints `Successfully reset <service> approval status for com.pais.handy`. On next launch the app behaves as if the permission was never requested (prompts fire again).
+**Expected:** each command prints `Successfully reset <service> approval status for com.kylebegeman.murmur`. On next launch the app behaves as if the permission was never requested (prompts fire again).
 
 ### 0.2 Full factory reset (fresh-install simulation)
 
 ```bash
-rm -rf ~/Library/Application\ Support/com.pais.handy
-tccutil reset All com.pais.handy
+rm -rf ~/Library/Application\ Support/com.kylebegeman.murmur
+tccutil reset All com.kylebegeman.murmur
 ```
 
 **Expected:** next launch shows the full onboarding flow (permissions → model download). Note this deletes downloaded models, history, and recordings.
@@ -44,7 +44,7 @@ The app is **ad-hoc signed** (`signingIdentity: "-"`). macOS TCC keys grants to 
 
 ### 0.4 A note on error toasts
 
-All error toasts (`recording-error`, `transcription-error`, `paste-error`, model errors) render **only in the main settings window**. For any test that expects a toast, keep the main window visible. If the window is hidden, the only evidence is `handy.log`.
+All error toasts (`recording-error`, `transcription-error`, `paste-error`, model errors) render **only in the main settings window**. For any test that expects a toast, keep the main window visible. If the window is hidden, the only evidence is `murmur.log`.
 
 ---
 
@@ -54,7 +54,7 @@ All error toasts (`recording-error`, `transcription-error`, `paste-error`, model
 
 Precondition: factory reset (0.2). Launch the app.
 
-1. Launch the app (open `Handy.app` or `bun run tauri dev`).
+1. Launch the app (open `Murmur.app` or `bun run tauri dev`).
    **Expected:** main window (680×570) appears with the onboarding permission screen showing **two cards**: Microphone and Accessibility, both in "needed" state. No system permission prompt has fired yet (mic is untouched at startup unless `always_on_microphone` is on; Enigo/shortcut init is deferred).
 2. Verify no global shortcut works yet: press `Option+Space` in another app.
    **Expected:** nothing happens (shortcuts are registered only after accessibility is granted).
@@ -62,18 +62,18 @@ Precondition: factory reset (0.2). Launch the app.
 ### TC-11 — Grant microphone permission
 
 1. On the Microphone card, click **Grant Permission**.
-   **Expected:** the macOS system prompt appears: *"Handy" would like to access the microphone* with usage text "Request microphone access to transcribe audio locally". Card enters "Waiting…" state.
+   **Expected:** the macOS system prompt appears: _"Murmur" would like to access the microphone_ with usage text "Request microphone access to transcribe audio locally". Card enters "Waiting…" state.
 2. Click **Allow** on the system prompt.
    **Expected:** within ~1 s (1 Hz polling) the card flips to granted.
-3. Known limitation to verify does-not-crash: if the permission was previously **denied** (not reset), clicking Grant Permission does nothing visible (silent no-op — no prompt, no System Settings deep link) and the card stays "Waiting…" forever. Recovery is `tccutil reset Microphone com.pais.handy` or manual toggle in System Settings → Privacy & Security → Microphone.
+3. Known limitation to verify does-not-crash: if the permission was previously **denied** (not reset), clicking Grant Permission does nothing visible (silent no-op — no prompt, no System Settings deep link) and the card stays "Waiting…" forever. Recovery is `tccutil reset Microphone com.kylebegeman.murmur` or manual toggle in System Settings → Privacy & Security → Microphone.
 
 ### TC-12 — Grant accessibility permission
 
 1. On the Accessibility card, click **Grant Permission**.
    **Expected:** the one-time macOS accessibility prompt appears (offering to open System Settings). Card enters "Waiting…".
-2. In System Settings → Privacy & Security → Accessibility, enable **Handy**.
+2. In System Settings → Privacy & Security → Accessibility, enable **Murmur**.
    **Expected:** within ~1 s the card flips to granted; the app initializes Enigo and registers global shortcuts at this moment.
-3. Known limitation: the AX prompt is **one-shot per app identity**. If it was previously dismissed, the button does nothing and never opens System Settings — the card polls forever. Recovery: open System Settings manually or `tccutil reset Accessibility com.pais.handy`.
+3. Known limitation: the AX prompt is **one-shot per app identity**. If it was previously dismissed, the button does nothing and never opens System Settings — the card polls forever. Recovery: open System Settings manually or `tccutil reset Accessibility com.kylebegeman.murmur`.
 
 ### TC-13 — Model download completes onboarding
 
@@ -84,7 +84,7 @@ Precondition: factory reset (0.2). Launch the app.
 
 ### TC-14 — Returning user with revoked permission is re-gated
 
-1. Complete onboarding (TC-10..13). Quit the app. Run `tccutil reset Accessibility com.pais.handy`. Relaunch.
+1. Complete onboarding (TC-10..13). Quit the app. Run `tccutil reset Accessibility com.kylebegeman.murmur`. Relaunch.
    **Expected:** the main window is force-shown and routed back to the permission onboarding step (returning-user mode). Granting accessibility again returns you directly to the main UI (no model step repeat).
 2. Alternative surface: if you instead revoke accessibility **while the app shows the main UI** (toggle off in System Settings) and then reopen/re-render the main window, a persistent accessibility banner appears at the top of settings content.
    **Expected:** banner with a grant button is visible. (Known limitation: the button re-fires the one-shot AX prompt; it does not actually open System Settings despite its label.)
@@ -145,7 +145,7 @@ Requires a **running** instance (the flag is forwarded via single-instance and t
 
 1. With the app running and a text field focused, run:
    ```bash
-   /Applications/Handy.app/Contents/MacOS/Handy --toggle-transcription
+   /Applications/Murmur.app/Contents/MacOS/Murmur --toggle-transcription
    ```
    (dev build: `src-tauri/target/debug/handy`)
    **Expected:** the CLI process exits immediately; recording starts in the running instance (overlay appears) — toggle semantics regardless of the push-to-talk setting.
@@ -186,7 +186,7 @@ Precondition: streaming model + Live overlay unless noted. In every cancellation
 
 1. Start recording. Run:
    ```bash
-   /Applications/Handy.app/Contents/MacOS/Handy --cancel
+   /Applications/Murmur.app/Contents/MacOS/Murmur --cancel
    ```
    **Expected:** CLI process exits immediately; the running instance cancels silently as in TC-30. (Requires a running instance; on a cold start the flag has no one to act on.)
 
@@ -244,18 +244,18 @@ Precondition: streaming model + Live overlay unless noted. In every cancellation
 
 ### TC-51 — Microphone permission denied
 
-1. Quit app. `tccutil reset Microphone com.pais.handy`. Relaunch, and when the mic prompt fires on first recording attempt (or via onboarding), click **Don't Allow**. Alternatively toggle Handy OFF in System Settings → Privacy & Security → Microphone while the app is quit, then relaunch. Keep the main window visible.
+1. Quit app. `tccutil reset Microphone com.kylebegeman.murmur`. Relaunch, and when the mic prompt fires on first recording attempt (or via onboarding), click **Don't Allow**. Alternatively toggle Murmur OFF in System Settings → Privacy & Security → Microphone while the app is quit, then relaunch. Keep the main window visible.
 2. Attempt to dictate.
    **Expected:** recording never starts — overlay appears briefly or not at all, tray returns to Idle, and a **recording-error toast** appears: microphone permission denied, directing you to System Settings → Privacy & Security → Microphone. The coordinator stays Idle (no stuck state): after granting permission, the very next shortcut press records normally without app restart.
 3. Known macOS caveat: if mic access is revoked **while the app is running**, CoreAudio may deliver silence instead of an error — the symptom is then an empty transcript (TC-44 behavior) with **no** permission toast. Note it; don't fail the run.
 
 ### TC-52 — Accessibility denied (paste failure)
 
-1. Quit app. `tccutil reset Accessibility com.pais.handy`. Relaunch. If routed to onboarding (TC-14), note it — for this test, get to the main UI with accessibility still missing (returning-user onboarding can be observed, then grant **microphone only** scenarios don't apply here; the practical variant is below).
+1. Quit app. `tccutil reset Accessibility com.kylebegeman.murmur`. Relaunch. If routed to onboarding (TC-14), note it — for this test, get to the main UI with accessibility still missing (returning-user onboarding can be observed, then grant **microphone only** scenarios don't apply here; the practical variant is below).
    Practical variant: complete onboarding normally, quit, revoke accessibility in System Settings, relaunch.
    **Expected:** onboarding/permission banner appears (TC-14). Global shortcuts may be dead (the event tap needs accessibility) — if `Option+Space` does nothing, that is the expected upstream symptom; trigger recording via `--toggle-transcription` instead.
-2. Dictate via `Handy --toggle-transcription` (twice) with the main window visible.
-   **Expected:** recording and transcription succeed, but insertion fails: **paste-error toast** ("paste failed", generic) in the main window. Transcript is recoverable from History; detail is in `handy.log`.
+2. Dictate via `Murmur --toggle-transcription` (twice) with the main window visible.
+   **Expected:** recording and transcription succeed, but insertion fails: **paste-error toast** ("paste failed", generic) in the main window. Transcript is recoverable from History; detail is in `murmur.log`.
 3. Known limitation: if accessibility is revoked **while the app is running** (Enigo already initialized), paste reports success and text silently goes nowhere — no toast. Note, don't fail.
 
 ---
@@ -267,11 +267,11 @@ Precondition: streaming model + Live overlay unless noted. In every cancellation
 1. Dictate a distinctive sentence. Open main window → **History** (sidebar).
    **Expected:** the new entry appears at the top **without a manual reload** (live `added` event), showing a locale-formatted timestamp and the transcript text.
 2. Click the entry's audio player.
-   **Expected:** the recording plays back and matches what you said (WAV from `~/Library/Application Support/com.pais.handy/recordings/handy-<unix_ts>.wav`, 16 kHz mono).
+   **Expected:** the recording plays back and matches what you said (WAV from `~/Library/Application Support/com.kylebegeman.murmur/recordings/murmur-<unix_ts>.wav`, 16 kHz mono).
 3. Click **Copy** on the entry, paste somewhere.
    **Expected:** clipboard now holds the entry's raw transcript.
 4. Click the **open recordings folder** header button.
-   **Expected:** Finder opens the `recordings/` directory containing the matching `handy-*.wav` files.
+   **Expected:** Finder opens the `recordings/` directory containing the matching `murmur-*.wav` files.
 
 ### TC-61 — Star and retention pruning
 
@@ -301,20 +301,20 @@ Default retention: `preserve_limit` with limit **5** — unsaved entries beyond 
 
 ## 7. Headless CLI smoke test (`--transcribe-file`)
 
-Headless flags spawn a **standalone instance** (single-instance skipped), so these work even while the GUI app is running. Console logs go to **stderr**; stdout is machine-parseable. Binary: `/Applications/Handy.app/Contents/MacOS/Handy` (dev: `src-tauri/target/debug/handy`).
+Headless flags spawn a **standalone instance** (single-instance skipped), so these work even while the GUI app is running. Console logs go to **stderr**; stdout is machine-parseable. Binary: `/Applications/Murmur.app/Contents/MacOS/Murmur` (dev: `src-tauri/target/debug/handy`).
 
 ### TC-70 — `--list-models` and `--list-devices`
 
 ```bash
-Handy --list-models; echo "exit=$?"
-Handy --list-devices; echo "exit=$?"
+Murmur --list-models; echo "exit=$?"
+Murmur --list-devices; echo "exit=$?"
 ```
 
 **Expected:** downloaded models (ids matching the Settings UI) and compute devices (on macOS: Metal/CPU) are printed to stdout; both exit `0`.
 
 ### TC-71 — Transcribe a known WAV
 
-Input must be **16 kHz mono 16-bit int PCM WAV**. Easiest sources: any file from `~/Library/Application Support/com.pais.handy/recordings/` (already exactly that format), or generate one:
+Input must be **16 kHz mono 16-bit int PCM WAV**. Easiest sources: any file from `~/Library/Application Support/com.kylebegeman.murmur/recordings/` (already exactly that format), or generate one:
 
 ```bash
 say -o /tmp/qa-smoke.wav --file-format=WAVE --data-format=LEI16@16000 "testing one two three"
@@ -322,7 +322,7 @@ say -o /tmp/qa-smoke.wav --file-format=WAVE --data-format=LEI16@16000 "testing o
 
 1. Run:
    ```bash
-   Handy --transcribe-file /tmp/qa-smoke.wav --model <downloaded-model-id> --json
+   Murmur --transcribe-file /tmp/qa-smoke.wav --model <downloaded-model-id> --json
    echo "exit=$?"
    ```
    **Expected:** exit `0`; stdout is a single JSON object containing model, device, backend, load time, best transcription time, RTF, and the transcript text — the text contains "testing one two three" (synthesized-voice recognition errors on individual words are acceptable; empty text is a failure). No GUI window, tray icon, or overlay appears; the process exits cleanly (no hang, no crash on teardown).
@@ -335,7 +335,7 @@ say -o /tmp/qa-smoke.wav --file-format=WAVE --data-format=LEI16@16000 "testing o
 
 ```bash
 say -o /tmp/qa-bad.wav --file-format=WAVE --data-format=LEI16@44100 "wrong rate"
-Handy --transcribe-file /tmp/qa-bad.wav --model <model-id>; echo "exit=$?"
+Murmur --transcribe-file /tmp/qa-bad.wav --model <model-id>; echo "exit=$?"
 ```
 
 **Expected:** strict validation rejects the 44.1 kHz file with a clear error on stderr and **exit code 2** (exit `1` is reserved for runtime errors such as model load failure — verify that separately by passing a nonexistent `--model` id and expecting a non-zero exit with an error message).
