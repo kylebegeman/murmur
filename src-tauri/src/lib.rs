@@ -647,12 +647,16 @@ pub fn run(cli_args: CliArgs) {
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds
-    specta_builder
-        .export(
+    {
+        let bindings_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/bindings.ts");
+        if let Err(error) = specta_builder.export(
             Typescript::default().bigint(BigIntExportBehavior::Number),
-            "../src/bindings.ts",
-        )
-        .expect("Failed to export typescript bindings");
+            bindings_path,
+        ) {
+            eprintln!("Failed to export typescript bindings: {error}");
+        }
+    }
 
     let invoke_handler = specta_builder.invoke_handler();
 
