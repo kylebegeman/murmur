@@ -259,7 +259,7 @@ const RecordingOverlay: React.FC = () => {
     const canCopy =
       !!r.transcript && r.outcome !== "inserted" && r.outcome !== "copied";
     return (
-      <div className="sbase">
+      <div className="sbase sresult-row">
         <div className="sbase-l">
           <span className={`sicon ${kind}`}>
             {kind === "ok" ? (
