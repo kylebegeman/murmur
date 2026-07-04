@@ -10,6 +10,7 @@ import {
   type HistoryEntry,
   type HistoryUpdatePayload,
 } from "@/bindings";
+import dynamicVinylUrl from "@/assets/brand/dynamic-vinyl.svg";
 import { useOsType } from "@/hooks/useOsType";
 import { formatDateTime } from "@/utils/dateFormat";
 import { AudioPlayer } from "../../ui/AudioPlayer";
@@ -324,7 +325,13 @@ export const HistorySettings: React.FC = () => {
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <div className="space-y-2">
         <div className="px-4 flex items-center justify-between">
-          <div>
+          <div className="flex items-center gap-3 min-w-0">
+            <img
+              src={dynamicVinylUrl}
+              alt=""
+              aria-hidden="true"
+              className="hidden sm:block h-11 w-11 shrink-0 object-contain opacity-90 pointer-events-none select-none"
+            />
             <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
               {t("settings.history.title")}
             </h2>

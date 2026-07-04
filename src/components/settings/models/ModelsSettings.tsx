@@ -11,6 +11,7 @@ import {
   supportsLanguageCode,
 } from "@/lib/constants/languages.ts";
 import type { ModelInfo } from "@/bindings";
+import retroBotUrl from "@/assets/brand/retro-bot.svg";
 
 // check if model supports a language based on its supported_languages list
 const modelSupportsLanguage = (model: ModelInfo, langCode: string): boolean => {
@@ -225,13 +226,21 @@ export const ModelsSettings: React.FC = () => {
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-4">
-      <div className="mb-4">
-        <h1 className="text-xl font-semibold mb-2">
-          {t("settings.models.title")}
-        </h1>
-        <p className="text-sm text-text/60">
-          {t("settings.models.description")}
-        </p>
+      <div className="mb-4 flex items-center justify-between gap-4 overflow-hidden">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold mb-2">
+            {t("settings.models.title")}
+          </h1>
+          <p className="text-sm text-text/60">
+            {t("settings.models.description")}
+          </p>
+        </div>
+        <img
+          src={retroBotUrl}
+          alt=""
+          aria-hidden="true"
+          className="hidden sm:block h-24 w-24 shrink-0 object-contain opacity-90 pointer-events-none select-none"
+        />
       </div>
 
       {/* Search bar — filter the catalog by name or description */}
